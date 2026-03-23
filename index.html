@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Focus App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- MODE -->
+  <div class="mode-select">
+    <button onclick="setMode('solo', this)" class="active">Solo</button>
+    <button onclick="setMode('room', this)">Room</button>
+  </div>
+
+  <!-- TITLE -->
+  <h2 class="title">Focus Session</h2>
+
+  <!-- INPUTS -->
+  <div class="inputs">
+    <div class="username-input">
+      <label>Your Name</label>
+      <input id="username" placeholder="Enter your name" />
+    </div>
+
+    <!-- hidden by default, shown in Room mode -->
+    <div id="roomSection" class="room-input" style="display:none;">
+      <label>Room Name</label>
+      <input id="roomInput" placeholder="e.g. deep-work" />
+    </div>
+  </div>
+
+  <!-- TIMER -->
+  <div class="timer-box">
+    <div class="timer" id="timer">00:00</div>
+
+    <div class="time-select">
+      <button onclick="setTime(30, this)">30s</button>
+      <button onclick="setTime(60, this)">60s</button>
+      <button onclick="setTime(120, this)">120s</button>
+    </div>
+
+    <div class="controls">
+      <button class="start" onclick="startSession()">Start</button>
+      <button class="stop" onclick="stopSession()">Stop</button>
+    </div>
+
+    <div class="status-box">
+      <p id="status">Status: Not started</p>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="summary-box">
+    <h3>Session Summary</h3>
+    <p id="summary"></p>
+  </div>
+
+  <!-- TOGGLE BUTTON  (FIX #1) -->
+  <button id="toggleBtn" onclick="toggleLeaderboard()">Hide Leaderboard</button>
+
+  <!-- LEADERBOARD SECTION  (FIX #1 + #2) -->
+  <div id="leaderboardSection">
+
+    <div class="leaderboard-tabs">
+      <button data-tab="room"   onclick="switchBoard('room', this)">Room</button>
+      <button data-tab="global" onclick="switchBoard('global', this)" class="active">Global</button>
+    </div>
+
+    <div id="roomBoard" style="display:none;">
+      <ul id="leaderboard"></ul>
+    </div>
+
+    <div id="globalBoard">
+      <ul id="globalLeaderboard"></ul>
+    </div>
+
+  </div><!-- end leaderboardSection -->
+
+</div><!-- end app -->
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+  import { 
+    getFirestore, collection, addDoc, getDocs, query, orderBy, limit,
+    doc, getDoc, setDoc, onSnapshot
+  } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyB9wLp_Z2PzCQgtdTjwoQZGw2tSC8tgNNY",
+    authDomain: "focus-app-3c749.firebaseapp.com",
+    projectId: "focus-app-3c749",
+    storageBucket: "focus-app-3c749.appspot.com",
+    messagingSenderId: "583246239661",
+    appId: "1:583246239661:web:7117c22d10842171ff7324"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  window.db = db;
+  window.firebaseFns = {
+    collection, addDoc, getDocs, query, orderBy, limit,
+    doc, getDoc, setDoc, onSnapshot
+  };
+</script>
+
+<script src="script.js"></script>
+
+</body>
+</html>
