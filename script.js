@@ -1,29 +1,33 @@
-// ══ CONSTANTS ═════════════════════════════════════════════
-const CIRCUMFERENCE = 2 * Math.PI * 88;
+// ══ CONSTANTS ════════════════════════════════════════════
+const CIRCUMFERENCE = 2 * Math.PI * 88; // 552.9
+
 const QUOTES = [
   '"Deep work is the ability to focus without distraction." — Cal Newport',
   '"The successful warrior is the average person with laser-like focus." — Bruce Lee',
   '"Concentrate all your thoughts upon the work at hand." — Alexander Graham Bell',
-  '"You have to be burning with an idea, or a problem." — Steve Jobs',
   '"Either you run the day or the day runs you." — Jim Rohn',
   '"Focus is a matter of deciding what things you\'re not going to do." — John Carmack',
   '"Lost time is never found again." — Benjamin Franklin',
   '"Do the hard jobs first. The easy jobs will take care of themselves." — Dale Carnegie',
+  '"You have to be burning with an idea, or a problem." — Steve Jobs',
 ];
+
 const BADGES_DEF = [
-  { id:"first",    label:"🎯 First Session",   check: s => s.totalSessions >= 1 },
-  { id:"ten",      label:"💪 10 Sessions",      check: s => s.totalSessions >= 10 },
-  { id:"nodistract",label:"🧘 Clean Session",   check: s => s.lastDistractions === 0 },
-  { id:"streak7",  label:"🔥 7 Day Streak",     check: s => s.streak >= 7 },
-  { id:"hour",     label:"⏰ 1 Hour Focus",     check: s => s.totalMinutes >= 60 },
-  { id:"legend",   label:"👑 Legend",            check: s => s.totalMinutes >= 600 },
+  { id:"first",      label:"🎯 First Session",  check: s => s.totalSessions >= 1 },
+  { id:"ten",        label:"💪 10 Sessions",     check: s => s.totalSessions >= 10 },
+  { id:"nodistract", label:"🧘 Clean Session",   check: s => s.lastDistractions === 0 && s.totalSessions >= 1 },
+  { id:"streak7",    label:"🔥 7 Day Streak",    check: s => s.streak >= 7 },
+  { id:"hour",       label:"⏰ 1 Hour Focus",    check: s => s.totalMinutes >= 60 },
+  { id:"legend",     label:"👑 Legend",           check: s => s.totalMinutes >= 600 },
 ];
+
 const LEVELS = [
-  { name:"Beginner",     min:0   },
-  { name:"Deep Worker",  min:60  },
-  { name:"Flow State",   min:300 },
-  { name:"Legend",       min:600 },
+  { name:"Beginner",    min:0   },
+  { name:"Deep Worker", min:60  },
+  { name:"Flow State",  min:300 },
+  { name:"Legend",      min:600 },
 ];
+
 const SOUND_URLS = {
   lofi:   "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
   rain:   "https://assets.mixkit.co/sfx/preview/mixkit-rain-and-thunder-ambience-1246.mp3",
@@ -31,26 +35,29 @@ const SOUND_URLS = {
   forest: "https://assets.mixkit.co/sfx/preview/mixkit-forest-birds-ambience-1210.mp3",
   white:  "https://assets.mixkit.co/sfx/preview/mixkit-static-white-noise-ambience-2618.mp3",
 };
+
 const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
-// ══ STATE ═════════════════════════════════════════════════
+// ══ STATE ════════════════════════════════════════════════
 let timeLeft = 0, totalTime = 0, distractedCount = 0;
 let running = false, intervalId = null;
-let mode = "solo", currentRoom = null;
+let mode = "solo";
 let roomUnsubscribe = null, globalUnsubscribe = null;
-let leaderboardVisible = true;
 let pomodoroMode = false, pomoPhase = "work", pomoCycle = 0;
 let activeAudio = null, activeSound = null;
 let distractionLog = [];
 let blurTime = null;
-let idleTimer = null;
-let stats = { totalSessions:0, totalMinutes:0, streak:0, lastSessionDate:null, badges:[], weekData:[0,0,0,0,0,0,0], lastDistractions:0 };
+let stats = {
+  totalSessions: 0, totalMinutes: 0, streak: 0,
+  lastSessionDate: null, badges: [],
+  weekData: [0,0,0,0,0,0,0], lastDistractions: 0
+};
 
-// ══ INIT ══════════════════════════════════════════════════
+// ══ INIT (called after auth) ══════════════════════════════
 window.initApp = async () => {
   showQuote();
-  checkRoomFromURL();
   loadTheme();
+  checkRoomFromURL();
   await loadStats();
   renderStats();
   renderHistory();
@@ -59,85 +66,99 @@ window.initApp = async () => {
   updateLandingStats();
 };
 
+// ══ WIRE SIGN-IN BUTTONS ══════════════════════════════════
+document.addEventListener("DOMContentLoaded", () => {
+  ["btnSignIn","btnHeroCTA","btnLbCTA","btnFinalCTA"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", () => window.signInWithGoogle());
+  });
+
+  document.getElementById("roomInput").addEventListener("input", () => {
+    if (mode === "room" && getRoom()) displayLeaderboard();
+  });
+
+  document.addEventListener("click", () => {
+    if (Notification && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, { once: true });
+});
+
 // ══ LANDING LIVE STATS ════════════════════════════════════
 async function updateLandingStats() {
   if (!window.firebaseFns) return;
-  const { collection, query, getDocs, orderBy } = window.firebaseFns;
+  const { collection, getDocs, query, orderBy, limit, onSnapshot } = window.firebaseFns;
+
   try {
-    const usersSnap = await getDocs(collection(window.db,"users"));
-    document.getElementById("statUsers").innerText = usersSnap.size;
+    const usersSnap = await getDocs(collection(window.db, "users"));
     let totalMins = 0, totalSess = 0;
     usersSnap.forEach(d => {
-      const data = d.data();
-      totalMins += data.totalMinutes || 0;
-      totalSess += data.totalSessions || 0;
+      totalMins += d.data().totalMinutes  || 0;
+      totalSess += d.data().totalSessions || 0;
     });
-    document.getElementById("statMinutes").innerText = totalMins;
-    document.getElementById("statSessions").innerText = totalSess;
-    document.getElementById("liveMinutes").innerText = totalMins;
-    document.getElementById("statMinutes").innerText = totalMins;
-  } catch(e) {}
+    const fmt = n => n >= 1000 ? (n/1000).toFixed(1)+"k" : String(n);
+    const s = document.getElementById("statSessions"); if(s) s.innerText = fmt(totalSess);
+    const u = document.getElementById("statUsers");    if(u) u.innerText = fmt(usersSnap.size);
+    const m = document.getElementById("statMinutes");  if(m) m.innerText = fmt(totalMins);
+    const l = document.getElementById("liveMinutes");  if(l) l.innerText = fmt(totalMins);
+  } catch(e) { console.warn("stats fetch:", e); }
 
-  // landing leaderboard
-  const { onSnapshot, limit } = window.firebaseFns;
-  const q = (window.firebaseFns.query)(
-    collection(window.db,"users"),
-    orderBy("total","desc"),
-    limit(5)
-  );
-  onSnapshot(q, snap => {
-    const list = document.getElementById("landingLeaderboard");
-    if (!list) return;
-    list.innerHTML = "";
-    let i = 1;
-    snap.forEach(d => {
-      const li = document.createElement("li");
-      li.innerHTML = `<span>${["🥇","🥈","🥉","4️⃣","5️⃣"][i-1]}</span> ${d.id} <span style="margin-left:auto;color:var(--accent)">${d.data().total} pts</span>`;
-      list.appendChild(li);
-      i++;
+  // Live global leaderboard on landing
+  try {
+    const q = query(collection(window.db,"users"), orderBy("total","desc"), limit(5));
+    onSnapshot(q, snap => {
+      const list = document.getElementById("landingLeaderboard");
+      if (!list) return;
+      list.innerHTML = "";
+      const medals = ["🥇","🥈","🥉","4️⃣","5️⃣"];
+      let i = 0;
+      snap.forEach(d => {
+        const li = document.createElement("li");
+        li.innerHTML = `<span>${medals[i]}</span><span style="flex:1">${d.data().name || d.id}</span><span style="color:var(--accent);font-weight:600">${d.data().total} pts</span>`;
+        list.appendChild(li); i++;
+      });
+      if (i === 0) list.innerHTML = "<li style='color:var(--muted);justify-content:center'>Be the first on the board!</li>";
     });
-    if (i===1) list.innerHTML = "<li style='color:var(--muted);justify-content:center'>Be the first on the board!</li>";
-  });
+  } catch(e) {}
 }
 
-// ══ QUOTE ═════════════════════════════════════════════════
+// ══ QUOTE ════════════════════════════════════════════════
 function showQuote() {
   const el = document.getElementById("quoteBar");
   if (el) el.innerText = QUOTES[Math.floor(Math.random() * QUOTES.length)];
 }
 
-// ══ THEME ═════════════════════════════════════════════════
+// ══ THEME ════════════════════════════════════════════════
 function loadTheme() {
-  if (localStorage.getItem("theme") === "light") {
+  if (localStorage.getItem("ff_theme") === "light") {
     document.body.classList.add("light");
-    const btn = document.querySelector(".theme-toggle");
-    if (btn) btn.textContent = "☀️";
+    const b = document.querySelector(".theme-toggle");
+    if (b) b.textContent = "☀️";
   }
 }
 function toggleTheme() {
   document.body.classList.toggle("light");
   const isLight = document.body.classList.contains("light");
-  localStorage.setItem("theme", isLight ? "light" : "dark");
-  const btn = document.querySelector(".theme-toggle");
-  if (btn) btn.textContent = isLight ? "☀️" : "🌙";
+  localStorage.setItem("ff_theme", isLight ? "light" : "dark");
+  const b = document.querySelector(".theme-toggle");
+  if (b) b.textContent = isLight ? "☀️" : "🌙";
 }
 
-// ══ MODE ══════════════════════════════════════════════════
+// ══ MODE ═════════════════════════════════════════════════
 function setMode(selected, btn) {
   if (running) { alert("Stop session first"); return; }
   mode = selected;
   if (roomUnsubscribe)   { roomUnsubscribe();   roomUnsubscribe   = null; }
   if (globalUnsubscribe) { globalUnsubscribe(); globalUnsubscribe = null; }
-  currentRoom = null;
 
-  const roomSection = document.getElementById("roomSection");
+  const rs = document.getElementById("roomSection");
   if (mode === "solo") {
-    roomSection.style.display = "none";
+    rs.style.display = "none";
     document.getElementById("leaderboard").innerHTML = "";
     switchBoard("global", document.querySelector(".leaderboard-tabs button[data-tab='global']"));
     displayGlobalLeaderboard();
   } else {
-    roomSection.style.display = "block";
+    rs.style.display = "block";
     switchBoard("room", document.querySelector(".leaderboard-tabs button[data-tab='room']"));
   }
   document.querySelectorAll(".mode-select button").forEach(b => b.classList.remove("active"));
@@ -145,25 +166,24 @@ function setMode(selected, btn) {
   resetUI();
 }
 
-// ══ LEADERBOARD TOGGLE ════════════════════════════════════
+// ══ SECTION TOGGLE ════════════════════════════════════════
 function toggleSection(id, btn) {
   const el = document.getElementById(id);
   if (!el) return;
   const hidden = el.style.display === "none";
   el.style.display = hidden ? "block" : "none";
-  btn.textContent = hidden ? "Hide" : "Show";
+  btn.textContent  = hidden ? "Hide" : "Show";
 }
-function toggleLeaderboard() { toggleSection("leaderboardSection", document.getElementById("toggleBtn")); }
 
 // ══ TAB SWITCH ════════════════════════════════════════════
 function switchBoard(type, btn) {
   document.querySelectorAll(".leaderboard-tabs button").forEach(b => b.classList.remove("active"));
   if (btn) btn.classList.add("active");
-  document.getElementById("roomBoard").style.display   = type==="room"   ? "block" : "none";
-  document.getElementById("globalBoard").style.display = type==="global" ? "block" : "none";
+  document.getElementById("roomBoard").style.display   = type === "room"   ? "block" : "none";
+  document.getElementById("globalBoard").style.display = type === "global" ? "block" : "none";
 }
 
-// ══ TIMER ═════════════════════════════════════════════════
+// ══ TIMER ════════════════════════════════════════════════
 function setTime(seconds, btn) {
   if (running) return;
   timeLeft = seconds; totalTime = seconds;
@@ -181,6 +201,7 @@ function openCustomTime() {
   const row = document.getElementById("customTimeRow");
   row.style.display = row.style.display === "none" ? "flex" : "none";
 }
+
 function applyCustomTime() {
   const mins = parseInt(document.getElementById("customMinutes").value);
   if (!mins || mins < 1) return;
@@ -192,25 +213,25 @@ function applyCustomTime() {
 }
 
 function updateTimerDisplay() {
-  const m = Math.floor(timeLeft/60), s = timeLeft%60;
-  document.getElementById("timer").innerText = String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
-  const pct = totalTime > 0 ? Math.round((timeLeft/totalTime)*100) : 0;
-  document.getElementById("timerPct").innerText = running ? pct+"%" : "—";
+  const m = Math.floor(timeLeft / 60), s = timeLeft % 60;
+  document.getElementById("timer").innerText =
+    String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+  const pct = totalTime > 0 ? Math.round((timeLeft / totalTime) * 100) : 0;
+  document.getElementById("timerPct").innerText  = running ? pct + "%" : "—";
   updateRing();
-  // Update page title
-  if (running) document.title = `🎯 Focusing... ${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")} — FocusFlow`;
-  else document.title = "FocusFlow — Deep Work Sessions";
+  document.title = running
+    ? `🎯 ${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")} — FocusFlow`
+    : "FocusFlow — Deep Work Sessions";
 }
 
 // ══ POMODORO ══════════════════════════════════════════════
 function togglePomodoro() {
   if (running) return;
   pomodoroMode = !pomodoroMode;
-  const btn = document.getElementById("pomodoroBtn");
-  btn.classList.toggle("active", pomodoroMode);
+  document.getElementById("pomodoroBtn").classList.toggle("active", pomodoroMode);
   if (pomodoroMode) {
     pomoPhase = "work"; pomoCycle = 0;
-    timeLeft = 25*60; totalTime = 25*60;
+    timeLeft = 25 * 60; totalTime = 25 * 60;
     updateTimerDisplay(); resetRing();
     document.getElementById("pomoStatus").innerText = "🍅 Work phase — 25m";
     document.querySelectorAll(".time-select button").forEach(b => b.classList.remove("active"));
@@ -223,12 +244,12 @@ function nextPomoPhase() {
   if (pomoPhase === "work") {
     pomoCycle++;
     pomoPhase = "break";
-    timeLeft = 5*60; totalTime = 5*60;
+    timeLeft = 5 * 60; totalTime = 5 * 60;
     document.getElementById("pomoStatus").innerText = `☕ Break — 5m (Cycle ${pomoCycle})`;
     setStatus("Break time! ☕");
   } else {
     pomoPhase = "work";
-    timeLeft = 25*60; totalTime = 25*60;
+    timeLeft = 25 * 60; totalTime = 25 * 60;
     document.getElementById("pomoStatus").innerText = `🍅 Work — 25m (Cycle ${pomoCycle})`;
     setStatus("Back to work! 🎯");
   }
@@ -247,15 +268,15 @@ function nextPomoPhase() {
 
 // ══ SESSION ═══════════════════════════════════════════════
 function startSession() {
-  if (running) return;
-  if (!window.currentUser) return;
+  if (running || !window.currentUser) return;
   if (timeLeft === 0) { setStatus("⚠️ Select a time first!"); return; }
-  if (mode==="room" && !getRoom()) { setStatus("⚠️ Enter room name!"); return; }
+  if (mode === "room" && !getRoom()) { setStatus("⚠️ Enter a room name!"); return; }
 
   document.querySelector(".btn-start").disabled = true;
   running = true; distractedCount = 0; distractionLog = [];
   document.getElementById("shareBtn").style.display = "none";
-  clearSummary(); setStatus("Focused 🎯");
+  clearSummary();
+  setStatus("Focused 🎯");
   document.getElementById("timer").classList.remove("distracted");
 
   intervalId = setInterval(() => {
@@ -271,7 +292,8 @@ function startSession() {
 
 function stopSession() {
   if (!running) return;
-  running = false; clearInterval(intervalId);
+  running = false;
+  clearInterval(intervalId);
   document.title = "FocusFlow — Deep Work Sessions";
 
   const timeSpent = totalTime - timeLeft;
@@ -281,9 +303,8 @@ function stopSession() {
   document.getElementById("timer").classList.remove("distracted");
   setStatus("Session Ended ✅");
 
-  // Stats
-  const m = Math.floor(timeSpent/60), s = timeSpent%60;
-  document.getElementById("statTime").innerText         = String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+  const m = Math.floor(timeSpent / 60), s = timeSpent % 60;
+  document.getElementById("statTime").innerText         = String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
   document.getElementById("statDistractions").innerText = distractedCount;
   document.getElementById("statScore").innerText        = score;
 
@@ -291,54 +312,54 @@ function stopSession() {
   const logEl = document.getElementById("distractionLog");
   logEl.innerHTML = "";
   distractionLog.forEach(d => {
-    const span = document.createElement("div");
-    span.innerHTML = `<span>⚠️</span> ${d.time} — away ${d.duration}s`;
-    logEl.appendChild(span);
+    const div = document.createElement("div");
+    div.innerHTML = `<span>⚠️</span> ${d.time} — away ${d.duration}s`;
+    logEl.appendChild(div);
   });
 
-  timeLeft = 0; document.getElementById("timer").innerText = "00:00";
+  timeLeft = 0;
+  document.getElementById("timer").innerText  = "00:00";
   document.getElementById("timerPct").innerText = "—";
   resetRing(); resetTimeButtons();
   playBell();
 
-  // Confetti if clean
   if (distractedCount === 0 && timeSpent >= 60) launchConfetti();
-
-  // Show share button
   document.getElementById("shareBtn").style.display = "block";
 
-  // Save
-  if (window.currentUser) saveSession(score, timeSpent);
-
   // Browser notification
-  if (Notification.permission === "granted") {
-    new Notification("FocusFlow — Session Complete! 🎉", { body: `Score: ${score} pts · Time: ${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}` });
-  } else if (Notification.permission !== "denied") {
-    Notification.requestPermission();
-  }
+  try {
+    if (Notification.permission === "granted") {
+      new Notification("FocusFlow — Session Complete! 🎉", {
+        body: `Score: ${score} pts · Time: ${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`
+      });
+    }
+  } catch(e) {}
+
+  if (window.currentUser) saveSession(score, timeSpent);
 }
 
 function resetUI() {
-  clearSummary(); setStatus("Ready");
-  document.getElementById("timer").innerText = "00:00";
+  clearSummary();
+  setStatus("Ready");
+  document.getElementById("timer").innerText    = "00:00";
   document.getElementById("timerPct").innerText = "—";
   document.getElementById("timer").classList.remove("distracted");
-  timeLeft=0; totalTime=0; distractedCount=0; distractionLog=[];
+  timeLeft = 0; totalTime = 0; distractedCount = 0; distractionLog = [];
   resetRing(); resetTimeButtons();
   document.getElementById("distractionLog").innerHTML = "";
-  document.getElementById("shareBtn").style.display = "none";
+  document.getElementById("shareBtn").style.display   = "none";
   document.title = "FocusFlow — Deep Work Sessions";
 }
 
 function clearSummary() {
-  document.getElementById("statTime").innerText = "--";
+  document.getElementById("statTime").innerText         = "--";
   document.getElementById("statDistractions").innerText = "--";
-  document.getElementById("statScore").innerText = "--";
+  document.getElementById("statScore").innerText        = "--";
 }
-function resetTimeButtons() { document.querySelectorAll(".time-select button").forEach(b=>b.classList.remove("active")); }
-function setStatus(msg) { document.getElementById("status").innerText = msg; }
+function resetTimeButtons() { document.querySelectorAll(".time-select button").forEach(b => b.classList.remove("active")); }
+function setStatus(msg)     { document.getElementById("status").innerText = msg; }
 
-// ══ DISTRACTION ═══════════════════════════════════════════
+// ══ DISTRACTION DETECTION ════════════════════════════════
 window.onblur = () => {
   if (!running) return;
   blurTime = Date.now();
@@ -350,14 +371,13 @@ window.onblur = () => {
 window.onfocus = () => {
   if (!running || !blurTime) return;
   const away = Math.round((Date.now() - blurTime) / 1000);
-  const now = new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+  const now  = new Date().toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
   distractionLog.push({ time: now, duration: away });
   blurTime = null;
   document.getElementById("timer").classList.remove("distracted");
-  setStatus(`Focused 🎯 · ${distractedCount} slip${distractedCount!==1?"s":""}`);
-  // Show modal if away > 5s
+  setStatus(`Focused 🎯 · ${distractedCount} slip${distractedCount !== 1 ? "s" : ""}`);
   if (away > 5) {
-    document.getElementById("modalMsg").innerText = `You were away for ${away} seconds. Stay focused!`;
+    document.getElementById("modalMsg").innerText = `You were away for ${away} seconds. Get back to it!`;
     document.getElementById("distractionModal").style.display = "flex";
   }
 };
@@ -367,26 +387,25 @@ function closeDistractionModal() {
 }
 
 // IDLE TRACKING
+let lastActivity = Date.now();
 function startIdleTracking() {
-  let lastMove = Date.now();
-  const reset = () => { lastMove = Date.now(); };
+  const reset = () => { lastActivity = Date.now(); };
   document.addEventListener("mousemove", reset);
-  document.addEventListener("keydown", reset);
-  idleTimer = setInterval(() => {
+  document.addEventListener("keydown",   reset);
+  setInterval(() => {
     if (!running) return;
-    if (Date.now() - lastMove > 5 * 60 * 1000) {
+    if (Date.now() - lastActivity > 5 * 60 * 1000) {
       distractedCount++;
       setStatus(`Idle detected 😴 (${distractedCount} distractions)`);
-      lastMove = Date.now(); // reset so it doesn't keep firing
+      lastActivity = Date.now();
     }
   }, 30000);
 }
 
-// ══ SOUNDS ════════════════════════════════════════════════
+// ══ AMBIENT SOUNDS ════════════════════════════════════════
 function toggleSound(btn) {
   const sound = btn.dataset.sound;
   if (activeSound === sound) {
-    // Stop
     if (activeAudio) { activeAudio.pause(); activeAudio = null; }
     activeSound = null;
     btn.classList.remove("active");
@@ -395,9 +414,9 @@ function toggleSound(btn) {
   if (activeAudio) { activeAudio.pause(); }
   document.querySelectorAll(".sound-btn").forEach(b => b.classList.remove("active"));
   const audio = new Audio(SOUND_URLS[sound]);
-  audio.loop = true;
+  audio.loop   = true;
   audio.volume = document.getElementById("volumeSlider").value / 100;
-  audio.play().catch(()=>{});
+  audio.play().catch(() => {});
   activeAudio = audio; activeSound = sound;
   btn.classList.add("active");
 }
@@ -408,12 +427,11 @@ function setVolume(val) {
 
 function playBell() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
+    const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+    const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain); gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    osc.type = "sine";
+    osc.frequency.value = 880; osc.type = "sine";
     gain.gain.setValueAtTime(0.3, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
     osc.start(ctx.currentTime);
@@ -428,6 +446,7 @@ function updateRing() {
   const progress = totalTime > 0 ? timeLeft / totalTime : 0;
   ring.style.strokeDashoffset = CIRCUMFERENCE * (1 - progress);
 }
+
 function resetRing() {
   const ring = document.getElementById("ringProgress");
   if (ring) ring.style.strokeDashoffset = CIRCUMFERENCE;
@@ -442,19 +461,20 @@ function copyInviteLink() {
     const toast = document.getElementById("inviteToast");
     toast.classList.add("show");
     setTimeout(() => toast.classList.remove("show"), 2500);
+  }).catch(() => {
+    prompt("Copy this link:", url);
   });
 }
 
 function checkRoomFromURL() {
   const params = new URLSearchParams(location.search);
-  const room = params.get("room");
+  const room   = params.get("room");
   if (room) {
-    // Auto switch to room mode after app loads
     setTimeout(() => {
       document.getElementById("roomInput").value = room;
       const roomBtn = document.querySelector(".mode-select button:last-child");
-      setMode("room", roomBtn);
-    }, 500);
+      if (roomBtn) setMode("room", roomBtn);
+    }, 600);
   }
 }
 
@@ -463,77 +483,84 @@ async function saveSession(score, timeSpent) {
   if (!window.firebaseFns || !window.currentUser) return;
   const { collection, addDoc, doc, getDoc, setDoc } = window.firebaseFns;
   const uid      = window.currentUser.uid;
-  const username = window.currentUser.displayName || window.currentUser.email;
+  const username = window.currentUser.displayName || window.currentUser.email || "Anonymous";
   const room     = getRoom();
-  const goal     = document.getElementById("focusGoal").value.trim();
+  const goal     = document.getElementById("focusGoal").value.trim() || "—";
 
-  // Save to room if room mode
-  if (mode==="room" && room) {
-    await addDoc(collection(window.db,"rooms",room,"scores"), {
+  // Room score
+  if (mode === "room" && room) {
+    await addDoc(collection(window.db, "rooms", room, "scores"), {
       value: score, name: username, uid, timestamp: Date.now()
-    });
+    }).catch(e => console.warn("room save:", e));
   }
 
-  // Save session history
-  await addDoc(collection(window.db,"users",uid,"sessions"), {
+  // Session history
+  await addDoc(collection(window.db, "users", uid, "sessions"), {
     score, timeSpent, distractions: distractedCount,
-    goal: goal || "—", timestamp: Date.now(),
+    goal, timestamp: Date.now(),
     date: new Date().toLocaleDateString()
-  });
+  }).catch(e => console.warn("session save:", e));
 
-  // Update user stats
-  const userRef  = doc(window.db,"users",uid);
-  const userSnap = await getDoc(userRef);
-  const prev     = userSnap.exists() ? userSnap.data() : {};
+  // Update user doc
+  const userRef  = doc(window.db, "users", uid);
+  const userSnap = await getDoc(userRef).catch(() => null);
+  const prev     = userSnap && userSnap.exists() ? userSnap.data() : {};
   const today    = new Date().toDateString();
+  const yesterday = new Date(Date.now() - 86400000).toDateString();
   const lastDate = prev.lastSessionDate || "";
-  const yesterday = new Date(Date.now()-86400000).toDateString();
-  const newStreak = (lastDate === today) ? (prev.streak||0) :
-                    (lastDate === yesterday) ? (prev.streak||0)+1 : 1;
-  const newTotal   = (prev.total || 0) + score;
-  const newSessions= (prev.totalSessions || 0) + 1;
-  const newMinutes = (prev.totalMinutes || 0) + Math.floor(timeSpent/60);
+  const newStreak = lastDate === today     ? (prev.streak || 0) :
+                    lastDate === yesterday  ? (prev.streak || 0) + 1 : 1;
+  const weekData  = [...(prev.weekData || [0,0,0,0,0,0,0])];
+  weekData[new Date().getDay()] += Math.floor(timeSpent / 60);
 
-  // Week data
-  const weekData = prev.weekData || [0,0,0,0,0,0,0];
-  const dayIdx   = new Date().getDay();
-  weekData[dayIdx] = (weekData[dayIdx] || 0) + Math.floor(timeSpent/60);
+  const newTotalSessions = (prev.totalSessions || 0) + 1;
+  const newTotalMinutes  = (prev.totalMinutes  || 0) + Math.floor(timeSpent / 60);
+  const newTotal         = (prev.total         || 0) + score;
 
   await setDoc(userRef, {
-    total: newTotal, totalSessions: newSessions, totalMinutes: newMinutes,
-    streak: newStreak, lastSessionDate: today, weekData,
+    total: newTotal,
+    totalSessions: newTotalSessions,
+    totalMinutes:  newTotalMinutes,
+    streak:        newStreak,
+    lastSessionDate: today,
+    weekData,
     lastDistractions: distractedCount,
     name: username
-  });
+  }).catch(e => console.warn("user save:", e));
 
-  stats = { totalSessions: newSessions, totalMinutes: newMinutes, streak: newStreak,
-    lastSessionDate: today, weekData, lastDistractions: distractedCount,
-    badges: checkBadges({ totalSessions: newSessions, totalMinutes: newMinutes, streak: newStreak, lastDistractions: distractedCount })
+  stats = {
+    totalSessions: newTotalSessions,
+    totalMinutes:  newTotalMinutes,
+    streak:        newStreak,
+    weekData,
+    lastDistractions: distractedCount,
+    badges: checkBadges({ totalSessions: newTotalSessions, totalMinutes: newTotalMinutes, streak: newStreak, lastDistractions: distractedCount })
   };
 
   renderStats();
   renderHistory();
   displayGlobalLeaderboard();
-  displayLeaderboard();
+  if (mode === "room") displayLeaderboard();
 }
 
 // ══ LOAD STATS ════════════════════════════════════════════
 async function loadStats() {
   if (!window.firebaseFns || !window.currentUser) return;
   const { doc, getDoc } = window.firebaseFns;
-  const uid = window.currentUser.uid;
-  const snap = await getDoc(doc(window.db,"users",uid));
-  if (snap.exists()) {
-    const d = snap.data();
-    stats = {
-      totalSessions: d.totalSessions || 0,
-      totalMinutes:  d.totalMinutes  || 0,
-      streak:        d.streak        || 0,
-      weekData:      d.weekData      || [0,0,0,0,0,0,0],
-      lastDistractions: d.lastDistractions || 0,
-      badges: checkBadges(d)
-    };
-  }
+  try {
+    const snap = await getDoc(doc(window.db, "users", window.currentUser.uid));
+    if (snap.exists()) {
+      const d = snap.data();
+      stats = {
+        totalSessions: d.totalSessions || 0,
+        totalMinutes:  d.totalMinutes  || 0,
+        streak:        d.streak        || 0,
+        weekData:      d.weekData      || [0,0,0,0,0,0,0],
+        lastDistractions: d.lastDistractions || 0,
+        badges: checkBadges(d)
+      };
+    }
+  } catch(e) { console.warn("loadStats:", e); }
 }
 
 function checkBadges(d) {
@@ -542,32 +569,31 @@ function checkBadges(d) {
 
 // ══ RENDER STATS ══════════════════════════════════════════
 function renderStats() {
-  document.getElementById("dashStreak").innerText    = stats.streak + "🔥";
-  document.getElementById("dashTotal").innerText     = stats.totalSessions;
-  document.getElementById("dashHours").innerText     = (stats.totalMinutes/60).toFixed(1) + "h";
-  const level = LEVELS.filter(l => stats.totalMinutes >= l.min).pop();
-  document.getElementById("dashLevel").innerText     = level ? level.name : "Beginner";
+  document.getElementById("dashStreak").innerText = stats.streak + "🔥";
+  document.getElementById("dashTotal").innerText  = stats.totalSessions;
+  document.getElementById("dashHours").innerText  = (stats.totalMinutes / 60).toFixed(1) + "h";
+  const level = [...LEVELS].reverse().find(l => stats.totalMinutes >= l.min);
+  document.getElementById("dashLevel").innerText  = level ? level.name : "Beginner";
 
-  // Badges
   const row = document.getElementById("badgesRow");
   row.innerHTML = "";
   BADGES_DEF.forEach(b => {
     const el = document.createElement("div");
-    el.className = "badge" + (stats.badges.includes(b.id) ? " earned" : "");
+    el.className  = "badge" + (stats.badges.includes(b.id) ? " earned" : "");
     el.textContent = b.label;
     row.appendChild(el);
   });
 
-  // Week chart
-  const chart = document.getElementById("weekChart");
+  const chart  = document.getElementById("weekChart");
   chart.innerHTML = "";
-  const maxVal = Math.max(...(stats.weekData||[0,0,0,0,0,0,0]), 1);
+  const wd     = stats.weekData || [0,0,0,0,0,0,0];
+  const maxVal = Math.max(...wd, 1);
   const today  = new Date().getDay();
-  (stats.weekData||[0,0,0,0,0,0,0]).forEach((val,i) => {
-    const wrap  = document.createElement("div"); wrap.className = "bar-day";
-    const bar   = document.createElement("div"); bar.className  = "bar" + (i===today?" today":"");
-    bar.style.height = Math.max(4, (val/maxVal)*56) + "px";
-    const lbl   = document.createElement("div"); lbl.className  = "bar-lbl"; lbl.textContent = DAYS[i];
+  wd.forEach((val, i) => {
+    const wrap = document.createElement("div"); wrap.className = "bar-day";
+    const bar  = document.createElement("div"); bar.className  = "bar" + (i === today ? " today" : "");
+    bar.style.height = Math.max(3, (val / maxVal) * 52) + "px";
+    const lbl  = document.createElement("div"); lbl.className  = "bar-lbl"; lbl.textContent = DAYS[i];
     wrap.appendChild(bar); wrap.appendChild(lbl);
     chart.appendChild(wrap);
   });
@@ -577,19 +603,23 @@ function renderStats() {
 async function renderHistory() {
   if (!window.firebaseFns || !window.currentUser) return;
   const { collection, query, orderBy, limit, getDocs } = window.firebaseFns;
-  const uid = window.currentUser.uid;
-  const q = query(collection(window.db,"users",uid,"sessions"), orderBy("timestamp","desc"), limit(10));
-  const snap = await getDocs(q);
-  const list = document.getElementById("historyList");
-  list.innerHTML = "";
-  snap.forEach(d => {
-    const data = d.data();
-    const li   = document.createElement("li");
-    const m    = Math.floor(data.timeSpent/60), s = data.timeSpent%60;
-    li.innerHTML = `<span class="h-goal">${data.goal}</span><span class="h-meta">${data.date} · ${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")} · ${data.distractions} distractions · ${data.score} pts</span>`;
-    list.appendChild(li);
-  });
-  if (snap.empty) list.innerHTML = "<li style='color:var(--muted)'>No sessions yet. Start your first!</li>";
+  try {
+    const q    = query(collection(window.db, "users", window.currentUser.uid, "sessions"), orderBy("timestamp","desc"), limit(10));
+    const snap = await getDocs(q);
+    const list = document.getElementById("historyList");
+    list.innerHTML = "";
+    if (snap.empty) {
+      list.innerHTML = "<li style='color:var(--muted)'>No sessions yet. Start your first!</li>";
+      return;
+    }
+    snap.forEach(d => {
+      const data = d.data();
+      const m    = Math.floor(data.timeSpent / 60), s = data.timeSpent % 60;
+      const li   = document.createElement("li");
+      li.innerHTML = `<span class="h-goal">${data.goal}</span><span class="h-meta">${data.date} · ${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")} · ${data.distractions} distractions · ${data.score} pts</span>`;
+      list.appendChild(li);
+    });
+  } catch(e) { console.warn("renderHistory:", e); }
 }
 
 // ══ LEADERBOARDS ══════════════════════════════════════════
@@ -602,20 +632,20 @@ async function displayLeaderboard() {
   }
   const { collection, query, orderBy, limit, onSnapshot } = window.firebaseFns;
   if (roomUnsubscribe) { roomUnsubscribe(); roomUnsubscribe = null; }
-  const q = query(collection(window.db,"rooms",room,"scores"), orderBy("value","desc"), limit(5));
+  const q = query(collection(window.db, "rooms", room, "scores"), orderBy("value","desc"), limit(5));
   roomUnsubscribe = onSnapshot(q, snap => {
     const list = document.getElementById("leaderboard");
     list.innerHTML = "";
     let i = 1;
     snap.forEach(d => {
       const data = d.data(); if (!data.name) return;
-      const li = document.createElement("li");
+      const li   = document.createElement("li");
       const isMe = window.currentUser && data.uid === window.currentUser.uid;
       if (isMe) li.classList.add("mine");
-      li.innerText = `#${i}  ${data.name}${isMe?" (you)":""} — ${data.value} pts`;
+      li.innerText = `#${i}  ${data.name}${isMe ? " (you)" : ""} — ${data.value} pts`;
       list.appendChild(li); i++;
     });
-    if (i===1) list.innerHTML = "<li style='color:var(--muted)'>No scores yet</li>";
+    if (i === 1) list.innerHTML = "<li style='color:var(--muted)'>No scores yet</li>";
   });
 }
 
@@ -623,7 +653,7 @@ async function displayGlobalLeaderboard() {
   if (!window.firebaseFns) return;
   const { collection, query, orderBy, limit, onSnapshot } = window.firebaseFns;
   if (globalUnsubscribe) { globalUnsubscribe(); globalUnsubscribe = null; }
-  const q = query(collection(window.db,"users"), orderBy("total","desc"), limit(10));
+  const q = query(collection(window.db, "users"), orderBy("total","desc"), limit(10));
   globalUnsubscribe = onSnapshot(q, snap => {
     const list = document.getElementById("globalLeaderboard");
     list.innerHTML = "";
@@ -632,25 +662,24 @@ async function displayGlobalLeaderboard() {
       const isMe = window.currentUser && d.id === window.currentUser.uid;
       const li   = document.createElement("li");
       if (isMe) li.classList.add("mine");
-      li.innerText = `#${i}  ${d.data().name || d.id}${isMe?" (you)":""} — ${d.data().total} pts`;
+      li.innerText = `#${i}  ${d.data().name || d.id}${isMe ? " (you)" : ""} — ${d.data().total} pts`;
       list.appendChild(li); i++;
     });
-    if (i===1) list.innerHTML = "<li style='color:var(--muted)'>No scores yet</li>";
+    if (i === 1) list.innerHTML = "<li style='color:var(--muted)'>No scores yet</li>";
   });
 }
 
-// ══ SHARE SCORE ═══════════════════════════════════════════
+// ══ SHARE ════════════════════════════════════════════════
 function shareScore() {
-  const time   = document.getElementById("statTime").innerText;
-  const dist   = document.getElementById("statDistractions").innerText;
-  const score  = document.getElementById("statScore").innerText;
-  const goal   = document.getElementById("focusGoal").value.trim() || "Deep work";
-  const text   = `⚡ FocusFlow Session\n🎯 Goal: ${goal}\n⏱️ Time: ${time}\n🚫 Distractions: ${dist}\n🏆 Score: ${score} pts\n\nfocus-app-six-hazel.vercel.app`;
+  const time  = document.getElementById("statTime").innerText;
+  const dist  = document.getElementById("statDistractions").innerText;
+  const score = document.getElementById("statScore").innerText;
+  const goal  = document.getElementById("focusGoal").value.trim() || "Deep work";
+  const text  = `⚡ FocusFlow Session\n🎯 ${goal}\n⏱️ ${time} · 🚫 ${dist} distractions · 🏆 ${score} pts\n\nfocus-app-six-hazel.vercel.app`;
   if (navigator.share) {
-    navigator.share({ title:"FocusFlow Score", text });
+    navigator.share({ title: "FocusFlow Score", text }).catch(() => {});
   } else {
-    navigator.clipboard.writeText(text);
-    alert("Score copied to clipboard! Paste it anywhere 🎉");
+    navigator.clipboard.writeText(text).then(() => alert("Score copied! Paste anywhere 🎉")).catch(() => {});
   }
 }
 
@@ -661,23 +690,25 @@ function launchConfetti() {
   const ctx = canvas.getContext("2d");
   canvas.width  = window.innerWidth;
   canvas.height = window.innerHeight;
-  const pieces  = Array.from({length:120}, () => ({
-    x: Math.random()*canvas.width, y: Math.random()*canvas.height-canvas.height,
-    w: Math.random()*10+5, h: Math.random()*6+4,
-    color: ["#00ff88","#00cfff","#ff4560","#ffb300","#7c3aff"][Math.floor(Math.random()*5)],
-    speed: Math.random()*4+2, angle: Math.random()*Math.PI*2, spin: (Math.random()-0.5)*0.2
+  const pieces  = Array.from({ length: 100 }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height - canvas.height,
+    w: Math.random() * 9 + 4, h: Math.random() * 5 + 3,
+    color: ["#22d47a","#38bdf8","#f87171","#fbbf24","#818cf8"][Math.floor(Math.random()*5)],
+    speed: Math.random() * 3.5 + 1.5, angle: Math.random() * Math.PI * 2,
+    spin: (Math.random() - 0.5) * 0.18
   }));
   let frames = 0;
   const draw = () => {
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     pieces.forEach(p => {
       p.y += p.speed; p.angle += p.spin;
-      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.angle);
-      ctx.fillStyle = p.color; ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle);
+      ctx.fillStyle = p.color; ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
       ctx.restore();
     });
     frames++;
-    if (frames < 180) requestAnimationFrame(draw);
+    if (frames < 200) requestAnimationFrame(draw);
     else { ctx.clearRect(0,0,canvas.width,canvas.height); canvas.style.display="none"; }
   };
   draw();
@@ -685,23 +716,10 @@ function launchConfetti() {
 
 // ══ KEYBOARD SHORTCUTS ════════════════════════════════════
 document.addEventListener("keydown", e => {
-  if (e.target.tagName === "INPUT") return;
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
   if (e.code === "Space") { e.preventDefault(); running ? stopSession() : startSession(); }
   if (e.code === "KeyR" && !running) resetUI();
 });
 
-// ══ HELPERS ═══════════════════════════════════════════════
-function getRoom()     { return document.getElementById("roomInput")?.value.trim() || ""; }
-function getUsername() { return window.currentUser?.displayName || ""; }
-
-// ══ ROOM INPUT LIVE ═══════════════════════════════════════
-document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("roomInput").addEventListener("input", () => {
-    if (mode==="room" && getRoom()) displayLeaderboard();
-  });
-
-  // Request notification permission on first interact
-  document.addEventListener("click", () => {
-    if (Notification.permission === "default") Notification.requestPermission();
-  }, { once: true });
-});
+// ══ HELPERS ══════════════════════════════════════════════
+function getRoom() { return document.getElementById("roomInput")?.value.trim() || ""; }
