@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════
-//  FIREBASE IMPORTS  (single clean import block — no duplicates)
+//  FIREBASE IMPORTS
 // ══════════════════════════════════════════════════════════
 import { initializeApp }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -7,8 +7,7 @@ import { initializeApp }
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,          // ← POPUP (works on all browsers/hosts)
   onAuthStateChanged,
   signOut as fbSignOut
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -24,12 +23,10 @@ import {
 
 // ══════════════════════════════════════════════════════════
 //  FIREBASE INIT
-//  authDomain MUST be the Firebase default domain —
-//  NOT the Vercel domain — for redirect auth to work.
 // ══════════════════════════════════════════════════════════
 const firebaseConfig = {
   apiKey:            "AIzaSyB9wLp_Z2PzCQgtdTjwoQZGw2tSC8tgNNY",
-  authDomain:        "focus-app-3c749.firebaseapp.com",   // ← keep this exactly as is
+  authDomain:        "focus-app-3c749.firebaseapp.com",
   projectId:         "focus-app-3c749",
   storageBucket:     "focus-app-3c749.appspot.com",
   messagingSenderId: "583246239661",
@@ -41,13 +38,8 @@ const auth        = getAuth(firebaseApp);
 const db          = getFirestore(firebaseApp);
 const provider    = new GoogleAuthProvider();
 
-// ── Expose to window so every function in this module can use them
-window.db   = db;
-window.auth = auth;
-
-// ── FIX #1: assign firebaseFns immediately after db is ready
-//    Every function that checks `if (!window.firebaseFns) return`
-//    was silently bailing because this was never set.
+window.db          = db;
+window.auth        = auth;
 window.firebaseFns = {
   collection, addDoc, getDocs,
   query, orderBy, limit,
@@ -57,92 +49,73 @@ window.firebaseFns = {
 
 
 // ══════════════════════════════════════════════════════════
-//  AUTH — REDIRECT FLOW (correct order of execution)
-//
-//  Correct lifecycle:
-//    1. Page loads after Google redirect
-//    2. getRedirectResult() resolves the pending credential
-//    3. Firebase internally calls setPersistence → stores the user
-//    4. onAuthStateChanged fires with the user
-//    5. UI switches to app
-//
-//  IMPORTANT: getRedirectResult() must be called BEFORE
-//  onAuthStateChanged is registered, so Firebase has time to
-//  store the user before the auth state callback fires.
+//  AUTH — POPUP FLOW
+//  Why popup instead of redirect:
+//  signInWithRedirect relies on a cross-origin iframe to pass
+//  auth state back. Chrome 115+, Firefox 109+, Safari 16.1+
+//  block third-party storage access by default, which silently
+//  kills the redirect flow on any non-Firebase-Hosting domain
+//  (including Vercel). signInWithPopup has no such dependency —
+//  it resolves in the same JS context, no cross-origin storage
+//  required, works on every browser and every host.
 // ══════════════════════════════════════════════════════════
 
-// Step 1: handle the redirect result first
-getRedirectResult(auth)
-  .then(result => {
-    if (result && result.user) {
-      // User just came back from Google — Firebase will now
-      // persist the session and trigger onAuthStateChanged automatically.
-      console.log("✅ Redirect result resolved:", result.user.displayName);
-    }
-  })
-  .catch(error => {
-    console.error("❌ getRedirectResult error:", error.code, error.message);
-  });
+// Sign in — called by all buttons
+window.signInWithGoogle = async function () {
+  try {
+    // signInWithPopup resolves immediately with the user credential.
+    // onAuthStateChanged will fire right after and switch the UI.
+    await signInWithPopup(auth, provider);
+  } catch (e) {
+    if (e.code === "auth/popup-closed-by-user" ||
+        e.code === "auth/cancelled-popup-request") return; // user closed — silent
+    console.error("Sign-in error:", e.code, e.message);
+    alert("Sign-in failed: " + e.message);
+  }
+};
 
-// Step 2: listen for auth state — this fires after getRedirectResult persists the user
+// Sign out
+window.doSignOut = async function () {
+  try {
+    if (roomUnsubscribe)   { roomUnsubscribe();   roomUnsubscribe   = null; }
+    if (globalUnsubscribe) { globalUnsubscribe(); globalUnsubscribe = null; }
+    await fbSignOut(auth);
+  } catch (e) {
+    console.error("Sign-out error:", e);
+  }
+};
+
+// Auth state listener — single source of truth for UI
 onAuthStateChanged(auth, user => {
   if (user) {
-    console.log("✅ Auth state: signed in as", user.displayName);
-
     window.currentUser = user;
 
-    // Update UI
     document.getElementById("landingPage").style.display = "none";
     document.getElementById("mainApp").style.display     = "block";
 
     const avatar = document.getElementById("userAvatar");
-    if (avatar && user.photoURL) avatar.src = user.photoURL;
+    if (avatar) avatar.src = user.photoURL || "";
+
     const nameEl = document.getElementById("userName");
     if (nameEl) nameEl.innerText = user.displayName
       ? user.displayName.split(" ")[0]
       : "You";
 
-    // Boot the app
     initApp();
 
   } else {
-    console.log("ℹ️ Auth state: not signed in");
     window.currentUser = null;
     document.getElementById("landingPage").style.display = "block";
     document.getElementById("mainApp").style.display     = "none";
   }
 });
 
-// Step 3: sign-in trigger — exposed globally so HTML onclick works too
-window.signInWithGoogle = async function () {
-  try {
-    await signInWithRedirect(auth, provider);
-    // Page will redirect to Google — execution stops here
-  } catch (e) {
-    console.error("signInWithRedirect error:", e);
-    alert("Sign-in failed: " + e.message);
-  }
-};
 
-// FIX #4: doSignOut was missing — HTML calls onclick="doSignOut()"
-window.doSignOut = async function () {
-  try {
-    if (roomUnsubscribe)   { roomUnsubscribe();   roomUnsubscribe   = null; }
-    if (globalUnsubscribe) { globalUnsubscribe(); globalUnsubscribe = null; }
-    await fbSignOut(auth);
-    window.currentUser = null;
-    document.getElementById("mainApp").style.display     = "none";
-    document.getElementById("landingPage").style.display = "block";
-  } catch (e) {
-    console.error("Sign-out error:", e);
-  }
-};
-
-// FIX #5: wire sign-in buttons here instead of DOMContentLoaded
-//  Module scripts are deferred — DOMContentLoaded may have already
-//  fired before the listener is registered, silently dropping it.
-//  Running this synchronously at module-evaluation time is safe
-//  because the HTML is already parsed when a module script runs.
+// ══════════════════════════════════════════════════════════
+//  WIRE BUTTONS — runs synchronously (module scripts are
+//  deferred so the DOM is already ready at this point;
+//  no DOMContentLoaded listener needed)
+// ══════════════════════════════════════════════════════════
 ["btnSignIn","btnHeroCTA","btnLbCTA","btnFinalCTA"].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener("click", () => window.signInWithGoogle());
@@ -152,7 +125,6 @@ document.getElementById("roomInput")?.addEventListener("input", () => {
   if (mode === "room" && getRoom()) displayLeaderboard();
 });
 
-// Request notification permission on first user interaction
 document.addEventListener("click", () => {
   if (typeof Notification !== "undefined" && Notification.permission === "default") {
     Notification.requestPermission().catch(() => {});
@@ -223,7 +195,7 @@ let stats = {
 
 
 // ══════════════════════════════════════════════════════════
-//  APP INIT  (called after user is confirmed signed-in)
+//  APP INIT
 // ══════════════════════════════════════════════════════════
 async function initApp() {
   showQuote();
@@ -236,8 +208,6 @@ async function initApp() {
   startIdleTracking();
   updateLandingStats();
 }
-
-// expose so inline HTML onclick can call it (belt-and-suspenders)
 window.initApp = initApp;
 
 
@@ -245,7 +215,6 @@ window.initApp = initApp;
 //  LANDING LIVE STATS
 // ══════════════════════════════════════════════════════════
 async function updateLandingStats() {
-  // window.firebaseFns is now always set — these calls will work
   try {
     const usersSnap = await getDocs(collection(db, "users"));
     let totalMins = 0, totalSess = 0;
@@ -260,7 +229,6 @@ async function updateLandingStats() {
     const elL = document.getElementById("liveMinutes");  if(elL) elL.innerText = fmt(totalMins);
   } catch(e) { console.warn("updateLandingStats:", e); }
 
-  // Live leaderboard preview on landing page
   try {
     const q = query(collection(db,"users"), orderBy("total","desc"), limit(5));
     onSnapshot(q, snap => {
@@ -701,21 +669,18 @@ async function saveSession(score, timeSpent) {
   const room = getRoom();
   const goal = document.getElementById("focusGoal")?.value.trim() || "—";
 
-  // Save to room leaderboard
   if (mode === "room" && room) {
     await addDoc(collection(db, "rooms", room, "scores"), {
       value: score, name: username, uid, timestamp: Date.now()
     }).catch(e => console.warn("room save:", e));
   }
 
-  // Save session to history
   await addDoc(collection(db, "users", uid, "sessions"), {
     score, timeSpent, distractions: distractedCount,
     goal, timestamp: Date.now(),
     date: new Date().toLocaleDateString()
   }).catch(e => console.warn("session save:", e));
 
-  // Update user totals
   const userRef  = doc(db, "users", uid);
   const userSnap = await getDoc(userRef).catch(() => null);
   const prev     = userSnap && userSnap.exists() ? userSnap.data() : {};
@@ -735,28 +700,16 @@ async function saveSession(score, timeSpent) {
   const newTotal         = (prev.total         || 0) + score;
 
   await setDoc(userRef, {
-    total:           newTotal,
-    totalSessions:   newTotalSessions,
-    totalMinutes:    newTotalMinutes,
-    streak:          newStreak,
-    lastSessionDate: today,
-    weekData,
-    lastDistractions: distractedCount,
-    name: username
+    total: newTotal, totalSessions: newTotalSessions,
+    totalMinutes: newTotalMinutes, streak: newStreak,
+    lastSessionDate: today, weekData,
+    lastDistractions: distractedCount, name: username
   }).catch(e => console.warn("user save:", e));
 
   stats = {
-    totalSessions:   newTotalSessions,
-    totalMinutes:    newTotalMinutes,
-    streak:          newStreak,
-    weekData,
-    lastDistractions: distractedCount,
-    badges: checkBadges({
-      totalSessions: newTotalSessions,
-      totalMinutes:  newTotalMinutes,
-      streak:        newStreak,
-      lastDistractions: distractedCount
-    })
+    totalSessions: newTotalSessions, totalMinutes: newTotalMinutes,
+    streak: newStreak, weekData, lastDistractions: distractedCount,
+    badges: checkBadges({ totalSessions: newTotalSessions, totalMinutes: newTotalMinutes, streak: newStreak, lastDistractions: distractedCount })
   };
 
   renderStats();
@@ -776,12 +729,9 @@ async function loadStats() {
     if (snap.exists()) {
       const d = snap.data();
       stats = {
-        totalSessions:   d.totalSessions   || 0,
-        totalMinutes:    d.totalMinutes    || 0,
-        streak:          d.streak          || 0,
-        weekData:        d.weekData        || [0,0,0,0,0,0,0],
-        lastDistractions: d.lastDistractions || 0,
-        badges: checkBadges(d)
+        totalSessions: d.totalSessions || 0, totalMinutes: d.totalMinutes || 0,
+        streak: d.streak || 0, weekData: d.weekData || [0,0,0,0,0,0,0],
+        lastDistractions: d.lastDistractions || 0, badges: checkBadges(d)
       };
     }
   } catch(e) { console.warn("loadStats:", e); }
@@ -867,10 +817,7 @@ async function displayLeaderboard() {
     return;
   }
   if (roomUnsubscribe) { roomUnsubscribe(); roomUnsubscribe = null; }
-  const q = query(
-    collection(db, "rooms", room, "scores"),
-    orderBy("value","desc"), limit(5)
-  );
+  const q = query(collection(db, "rooms", room, "scores"), orderBy("value","desc"), limit(5));
   roomUnsubscribe = onSnapshot(q, snap => {
     const list = document.getElementById("leaderboard");
     list.innerHTML = "";
