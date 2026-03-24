@@ -3,21 +3,13 @@
 // ══════════════════════════════════════════════════════════
 import { initializeApp }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-
 import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,          // ← POPUP (works on all browsers/hosts)
-  onAuthStateChanged,
-  signOut as fbSignOut
+  getAuth, GoogleAuthProvider, signInWithPopup,
+  onAuthStateChanged, signOut as fbSignOut
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-
 import {
-  getFirestore,
-  collection, addDoc, getDocs,
-  query, orderBy, limit,
-  doc, getDoc, setDoc,
-  onSnapshot
+  getFirestore, collection, addDoc, getDocs,
+  query, orderBy, limit, doc, getDoc, setDoc, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 
@@ -38,98 +30,8 @@ const auth        = getAuth(firebaseApp);
 const db          = getFirestore(firebaseApp);
 const provider    = new GoogleAuthProvider();
 
-window.db          = db;
-window.auth        = auth;
-window.firebaseFns = {
-  collection, addDoc, getDocs,
-  query, orderBy, limit,
-  doc, getDoc, setDoc,
-  onSnapshot
-};
-
-
-// ══════════════════════════════════════════════════════════
-//  AUTH — POPUP FLOW
-//  Why popup instead of redirect:
-//  signInWithRedirect relies on a cross-origin iframe to pass
-//  auth state back. Chrome 115+, Firefox 109+, Safari 16.1+
-//  block third-party storage access by default, which silently
-//  kills the redirect flow on any non-Firebase-Hosting domain
-//  (including Vercel). signInWithPopup has no such dependency —
-//  it resolves in the same JS context, no cross-origin storage
-//  required, works on every browser and every host.
-// ══════════════════════════════════════════════════════════
-
-// Sign in — called by all buttons
-window.signInWithGoogle = async function () {
-  try {
-    // signInWithPopup resolves immediately with the user credential.
-    // onAuthStateChanged will fire right after and switch the UI.
-    await signInWithPopup(auth, provider);
-  } catch (e) {
-    if (e.code === "auth/popup-closed-by-user" ||
-        e.code === "auth/cancelled-popup-request") return; // user closed — silent
-    console.error("Sign-in error:", e.code, e.message);
-    alert("Sign-in failed: " + e.message);
-  }
-};
-
-// Sign out
-window.doSignOut = async function () {
-  try {
-    if (roomUnsubscribe)   { roomUnsubscribe();   roomUnsubscribe   = null; }
-    if (globalUnsubscribe) { globalUnsubscribe(); globalUnsubscribe = null; }
-    await fbSignOut(auth);
-  } catch (e) {
-    console.error("Sign-out error:", e);
-  }
-};
-
-// Auth state listener — single source of truth for UI
-onAuthStateChanged(auth, user => {
-  if (user) {
-    window.currentUser = user;
-
-    document.getElementById("landingPage").style.display = "none";
-    document.getElementById("mainApp").style.display     = "block";
-
-    const avatar = document.getElementById("userAvatar");
-    if (avatar) avatar.src = user.photoURL || "";
-
-    const nameEl = document.getElementById("userName");
-    if (nameEl) nameEl.innerText = user.displayName
-      ? user.displayName.split(" ")[0]
-      : "You";
-
-    initApp();
-
-  } else {
-    window.currentUser = null;
-    document.getElementById("landingPage").style.display = "block";
-    document.getElementById("mainApp").style.display     = "none";
-  }
-});
-
-
-// ══════════════════════════════════════════════════════════
-//  WIRE BUTTONS — runs synchronously (module scripts are
-//  deferred so the DOM is already ready at this point;
-//  no DOMContentLoaded listener needed)
-// ══════════════════════════════════════════════════════════
-["btnSignIn","btnHeroCTA","btnLbCTA","btnFinalCTA"].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) el.addEventListener("click", () => window.signInWithGoogle());
-});
-
-document.getElementById("roomInput")?.addEventListener("input", () => {
-  if (mode === "room" && getRoom()) displayLeaderboard();
-});
-
-document.addEventListener("click", () => {
-  if (typeof Notification !== "undefined" && Notification.permission === "default") {
-    Notification.requestPermission().catch(() => {});
-  }
-}, { once: true });
+window.db   = db;
+window.auth = auth;
 
 
 // ══════════════════════════════════════════════════════════
@@ -164,12 +66,13 @@ const LEVELS = [
   { name:"Legend",      min:600 },
 ];
 
+// FIX: Replaced all broken/unreliable audio URLs with stable Pixabay CDN links
 const SOUND_URLS = {
-  lofi:   "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-  rain:   "https://assets.mixkit.co/sfx/preview/mixkit-rain-and-thunder-ambience-1246.mp3",
-  cafe:   "https://assets.mixkit.co/sfx/preview/mixkit-restaurant-crowd-talking-ambience-444.mp3",
-  forest: "https://assets.mixkit.co/sfx/preview/mixkit-forest-birds-ambience-1210.mp3",
-  white:  "https://assets.mixkit.co/sfx/preview/mixkit-static-white-noise-ambience-2618.mp3",
+  lofi:   "https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3",
+  rain:   "https://cdn.pixabay.com/audio/2022/03/10/audio_9419a9f7c5.mp3",
+  cafe:   "https://cdn.pixabay.com/audio/2021/09/06/audio_3da8018a5d.mp3",
+  forest: "https://cdn.pixabay.com/audio/2022/03/15/audio_16c4b21c07.mp3",
+  white:  "https://cdn.pixabay.com/audio/2022/03/12/audio_4a0b1bd2c3.mp3",
 };
 
 const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
@@ -187,11 +90,108 @@ let activeAudio = null, activeSound = null;
 let distractionLog = [];
 let blurTime = null;
 let lastActivity = Date.now();
+let appInitialized = false;  // prevents double init on auth re-fires
 let stats = {
   totalSessions: 0, totalMinutes: 0, streak: 0,
   lastSessionDate: null, badges: [],
   weekData: [0,0,0,0,0,0,0], lastDistractions: 0
 };
+
+// ── Distraction frequency tracking
+let distractionTimes = [];  // timestamps of each distraction event
+
+
+// ══════════════════════════════════════════════════════════
+//  AUTH — FIX: show loader while Firebase resolves auth state
+//  This prevents the flash of landing page on refresh
+// ══════════════════════════════════════════════════════════
+const loader = document.getElementById("authLoader");
+
+// FIX: Landing stats load immediately — independent of auth
+loadLandingStats();
+
+onAuthStateChanged(auth, user => {
+  // Hide loader — auth state is now known
+  loader.classList.add("hidden");
+  setTimeout(() => { loader.style.display = "none"; }, 350);
+
+  if (user) {
+    window.currentUser = user;
+    showApp(user);
+    if (!appInitialized) {
+      appInitialized = true;
+      initApp();
+    }
+  } else {
+    window.currentUser = null;
+    appInitialized = false;
+    showLanding();
+  }
+});
+
+function showApp(user) {
+  document.getElementById("landingPage").style.display = "none";
+  document.getElementById("mainApp").style.display     = "block";
+  const avatar = document.getElementById("userAvatar");
+  if (avatar) avatar.src = user.photoURL || "";
+  const nameEl = document.getElementById("userName");
+  if (nameEl) nameEl.innerText = user.displayName ? user.displayName.split(" ")[0] : "You";
+  // Profile menu
+  const ma = document.getElementById("menuAvatar"); if(ma) ma.src = user.photoURL || "";
+  const mn = document.getElementById("menuName");   if(mn) mn.innerText = user.displayName || "User";
+  const me = document.getElementById("menuEmail");  if(me) me.innerText = user.email || "";
+}
+
+function showLanding() {
+  document.getElementById("landingPage").style.display = "block";
+  document.getElementById("mainApp").style.display     = "none";
+}
+
+window.signInWithGoogle = async function () {
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (e) {
+    if (e.code === "auth/popup-closed-by-user" ||
+        e.code === "auth/cancelled-popup-request") return;
+    console.error("Sign-in error:", e.code, e.message);
+    alert("Sign-in failed: " + e.message);
+  }
+};
+
+window.doSignOut = async function () {
+  try {
+    if (roomUnsubscribe)   { roomUnsubscribe();   roomUnsubscribe   = null; }
+    if (globalUnsubscribe) { globalUnsubscribe(); globalUnsubscribe = null; }
+    appInitialized = false;
+    await fbSignOut(auth);
+    toggleProfileMenu(true); // force close menu
+  } catch (e) { console.error("Sign-out error:", e); }
+};
+
+
+// ══════════════════════════════════════════════════════════
+//  WIRE BUTTONS (synchronous — module scripts run after DOM parse)
+// ══════════════════════════════════════════════════════════
+["btnSignIn","btnHeroCTA","btnLbCTA","btnFinalCTA"].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener("click", () => window.signInWithGoogle());
+});
+
+document.getElementById("roomInput")?.addEventListener("input", () => {
+  if (mode === "room" && getRoom()) displayLeaderboard();
+});
+
+// Close profile menu on outside click
+document.addEventListener("click", e => {
+  const menu = document.getElementById("profileMenu");
+  const pill = document.querySelector(".user-pill");
+  if (menu && pill && !pill.contains(e.target) && !menu.contains(e.target)) {
+    menu.style.display = "none";
+  }
+  if (typeof Notification !== "undefined" && Notification.permission === "default") {
+    Notification.requestPermission().catch(() => {});
+  }
+}, { once: false });
 
 
 // ══════════════════════════════════════════════════════════
@@ -206,15 +206,15 @@ async function initApp() {
   renderHistory();
   displayGlobalLeaderboard();
   startIdleTracking();
-  updateLandingStats();
+  startVisibilityTracking();
 }
 window.initApp = initApp;
 
 
 // ══════════════════════════════════════════════════════════
-//  LANDING LIVE STATS
+//  LANDING STATS — loads independently of auth
 // ══════════════════════════════════════════════════════════
-async function updateLandingStats() {
+async function loadLandingStats() {
   try {
     const usersSnap = await getDocs(collection(db, "users"));
     let totalMins = 0, totalSess = 0;
@@ -227,8 +227,9 @@ async function updateLandingStats() {
     const elU = document.getElementById("statUsers");    if(elU) elU.innerText = fmt(usersSnap.size);
     const elM = document.getElementById("statMinutes");  if(elM) elM.innerText = fmt(totalMins);
     const elL = document.getElementById("liveMinutes");  if(elL) elL.innerText = fmt(totalMins);
-  } catch(e) { console.warn("updateLandingStats:", e); }
+  } catch(e) { console.warn("loadLandingStats:", e); }
 
+  // Real-time landing leaderboard — no auth needed
   try {
     const q = query(collection(db,"users"), orderBy("total","desc"), limit(5));
     onSnapshot(q, snap => {
@@ -242,10 +243,21 @@ async function updateLandingStats() {
         li.innerHTML = `<span>${medals[i]}</span><span style="flex:1">${d.data().name || d.id}</span><span style="color:var(--accent);font-weight:600">${d.data().total} pts</span>`;
         list.appendChild(li); i++;
       });
-      if (i === 0) list.innerHTML = "<li style='color:var(--muted);justify-content:center'>Be the first on the board!</li>";
+      if (i === 0) list.innerHTML = "<li style='color:var(--muted);justify-content:center'>Be the first!</li>";
     });
-  } catch(e) { console.warn("landing leaderboard:", e); }
+  } catch(e) { console.warn("landing board:", e); }
 }
+
+
+// ══════════════════════════════════════════════════════════
+//  PROFILE MENU
+// ══════════════════════════════════════════════════════════
+function toggleProfileMenu(forceClose = false) {
+  const menu = document.getElementById("profileMenu");
+  if (!menu) return;
+  menu.style.display = (forceClose || menu.style.display !== "none") ? "none" : "block";
+}
+window.toggleProfileMenu = toggleProfileMenu;
 
 
 // ══════════════════════════════════════════════════════════
@@ -267,13 +279,11 @@ function loadTheme() {
     if (b) b.textContent = "☀️";
   }
 }
-
 function toggleTheme() {
   document.body.classList.toggle("light");
   const isLight = document.body.classList.contains("light");
   localStorage.setItem("ff_theme", isLight ? "light" : "dark");
-  const b = document.querySelector(".theme-toggle");
-  if (b) b.textContent = isLight ? "☀️" : "🌙";
+  document.querySelectorAll(".theme-toggle").forEach(b => b.textContent = isLight ? "☀️" : "🌙");
 }
 window.toggleTheme = toggleTheme;
 
@@ -431,7 +441,10 @@ function startSession() {
   if (mode === "room" && !getRoom()) { setStatus("⚠️ Enter a room name!"); return; }
 
   document.querySelector(".btn-start").disabled = true;
-  running = true; distractedCount = 0; distractionLog = [];
+  running = true;
+  distractedCount = 0;
+  distractionLog  = [];
+  distractionTimes = [];
   document.getElementById("shareBtn").style.display = "none";
   clearSummary();
   setStatus("Focused 🎯");
@@ -502,7 +515,8 @@ function resetUI() {
   document.getElementById("timer").innerText    = "00:00";
   document.getElementById("timerPct").innerText = "—";
   document.getElementById("timer").classList.remove("distracted");
-  timeLeft = 0; totalTime = 0; distractedCount = 0; distractionLog = [];
+  timeLeft = 0; totalTime = 0; distractedCount = 0;
+  distractionLog = []; distractionTimes = [];
   resetRing(); resetTimeButtons();
   document.getElementById("distractionLog").innerHTML = "";
   document.getElementById("shareBtn").style.display   = "none";
@@ -515,21 +529,44 @@ function clearSummary() {
   document.getElementById("statDistractions").innerText = "--";
   document.getElementById("statScore").innerText        = "--";
 }
-function resetTimeButtons() {
-  document.querySelectorAll(".time-select button").forEach(b => b.classList.remove("active"));
+function resetTimeButtons() { document.querySelectorAll(".time-select button").forEach(b => b.classList.remove("active")); }
+function setStatus(msg)     { document.getElementById("status").innerText = msg; }
+
+
+// ══════════════════════════════════════════════════════════
+//  DISTRACTION DETECTION — IMPROVED
+//
+//  Browser security limits:
+//  ✅ Can detect: tab switch (blur/visibilitychange), mouse idle
+//  ❌ Cannot detect: what other sites/apps are open
+//  ❌ Cannot detect: content inside other tabs
+//
+//  Strategy:
+//  1. window.onblur + visibilitychange = catches tab/window switch
+//  2. Idle mouse > 5min = distraction
+//  3. Track frequency: rapid repeated switching gets extra penalty
+//  4. Log exact away time per distraction
+// ══════════════════════════════════════════════════════════
+function recordDistraction(away = 0) {
+  distractedCount++;
+  distractionTimes.push(Date.now());
+
+  // Rapid switching penalty: if >3 distractions in last 60s, add extra
+  const recentCutoff = Date.now() - 60000;
+  const recentCount  = distractionTimes.filter(t => t > recentCutoff).length;
+  if (recentCount > 3) {
+    distractedCount++; // double penalty for rapid switching
+    setStatus(`⚠️ Rapid switching detected! (${distractedCount} distractions)`);
+  } else {
+    setStatus(`Distracted ❌ (${distractedCount}${recentCount > 2 ? " — slow down!" : ""})`);
+  }
+  document.getElementById("timer").classList.add("distracted");
 }
-function setStatus(msg) { document.getElementById("status").innerText = msg; }
 
-
-// ══════════════════════════════════════════════════════════
-//  DISTRACTION DETECTION
-// ══════════════════════════════════════════════════════════
 window.onblur = () => {
   if (!running) return;
   blurTime = Date.now();
-  distractedCount++;
-  setStatus(`Distracted ❌ (${distractedCount})`);
-  document.getElementById("timer").classList.add("distracted");
+  recordDistraction();
 };
 
 window.onfocus = () => {
@@ -540,28 +577,53 @@ window.onfocus = () => {
   blurTime = null;
   document.getElementById("timer").classList.remove("distracted");
   setStatus(`Focused 🎯 · ${distractedCount} slip${distractedCount !== 1 ? "s" : ""}`);
-  if (away > 5) {
+  if (away > 10) {
     document.getElementById("modalMsg").innerText =
-      `You were away for ${away} seconds. Get back to it!`;
+      `You were away for ${away} seconds. Stay on task!`;
     document.getElementById("distractionModal").style.display = "flex";
   }
 };
+
+// visibilitychange catches mobile tab switch and most browser tab switches
+// even when window.onblur doesn't fire
+function startVisibilityTracking() {
+  document.addEventListener("visibilitychange", () => {
+    if (!running) return;
+    if (document.hidden) {
+      if (!blurTime) { // only if onblur hasn't already fired
+        blurTime = Date.now();
+        recordDistraction();
+      }
+    } else {
+      if (blurTime) {
+        const away = Math.round((Date.now() - blurTime) / 1000);
+        const now  = new Date().toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
+        distractionLog.push({ time: now, duration: away });
+        blurTime = null;
+        document.getElementById("timer").classList.remove("distracted");
+        setStatus(`Focused 🎯 · ${distractedCount} slip${distractedCount !== 1 ? "s" : ""}`);
+      }
+    }
+  });
+}
 
 function closeDistractionModal() {
   document.getElementById("distractionModal").style.display = "none";
 }
 window.closeDistractionModal = closeDistractionModal;
 
+// Idle detection: mouse + keyboard inactivity > 5 minutes
 function startIdleTracking() {
   const reset = () => { lastActivity = Date.now(); };
   document.addEventListener("mousemove", reset);
   document.addEventListener("keydown",   reset);
+  document.addEventListener("touchstart",reset);
   setInterval(() => {
     if (!running) return;
     if (Date.now() - lastActivity > 5 * 60 * 1000) {
-      distractedCount++;
+      recordDistraction(0);
       setStatus(`Idle detected 😴 (${distractedCount} distractions)`);
-      lastActivity = Date.now();
+      lastActivity = Date.now(); // reset so it fires again after next 5min
     }
   }, 30000);
 }
@@ -583,7 +645,7 @@ function toggleSound(btn) {
   const audio  = new Audio(SOUND_URLS[sound]);
   audio.loop   = true;
   audio.volume = document.getElementById("volumeSlider").value / 100;
-  audio.play().catch(() => {});
+  audio.play().catch(e => console.warn("Audio play failed:", e));
   activeAudio = audio; activeSound = sound;
   btn.classList.add("active");
 }
@@ -618,7 +680,6 @@ function updateRing() {
   const progress = totalTime > 0 ? timeLeft / totalTime : 0;
   ring.style.strokeDashoffset = CIRCUMFERENCE * (1 - progress);
 }
-
 function resetRing() {
   const ring = document.getElementById("ringProgress");
   if (ring) ring.style.strokeDashoffset = CIRCUMFERENCE;
@@ -661,13 +722,10 @@ function checkRoomFromURL() {
 // ══════════════════════════════════════════════════════════
 async function saveSession(score, timeSpent) {
   if (!window.currentUser) return;
-
   const uid      = window.currentUser.uid;
-  const username = window.currentUser.displayName
-    || window.currentUser.email
-    || "Anonymous";
-  const room = getRoom();
-  const goal = document.getElementById("focusGoal")?.value.trim() || "—";
+  const username = window.currentUser.displayName || window.currentUser.email || "Anonymous";
+  const room     = getRoom();
+  const goal     = document.getElementById("focusGoal")?.value.trim() || "—";
 
   if (mode === "room" && room) {
     await addDoc(collection(db, "rooms", room, "scores"), {
@@ -677,8 +735,7 @@ async function saveSession(score, timeSpent) {
 
   await addDoc(collection(db, "users", uid, "sessions"), {
     score, timeSpent, distractions: distractedCount,
-    goal, timestamp: Date.now(),
-    date: new Date().toLocaleDateString()
+    goal, timestamp: Date.now(), date: new Date().toLocaleDateString()
   }).catch(e => console.warn("session save:", e));
 
   const userRef  = doc(db, "users", uid);
@@ -688,9 +745,8 @@ async function saveSession(score, timeSpent) {
   const today     = new Date().toDateString();
   const yesterday = new Date(Date.now() - 86400000).toDateString();
   const lastDate  = prev.lastSessionDate || "";
-  const newStreak = lastDate === today      ? (prev.streak || 0)
-                  : lastDate === yesterday  ? (prev.streak || 0) + 1
-                  : 1;
+  const newStreak = lastDate === today     ? (prev.streak || 0)
+                  : lastDate === yesterday  ? (prev.streak || 0) + 1 : 1;
 
   const weekData = [...(prev.weekData || [0,0,0,0,0,0,0])];
   weekData[new Date().getDay()] += Math.floor(timeSpent / 60);
@@ -712,6 +768,8 @@ async function saveSession(score, timeSpent) {
     badges: checkBadges({ totalSessions: newTotalSessions, totalMinutes: newTotalMinutes, streak: newStreak, lastDistractions: distractedCount })
   };
 
+  // Update profile menu stats too
+  updateProfileMenuStats();
   renderStats();
   renderHistory();
   displayGlobalLeaderboard();
@@ -733,12 +791,20 @@ async function loadStats() {
         streak: d.streak || 0, weekData: d.weekData || [0,0,0,0,0,0,0],
         lastDistractions: d.lastDistractions || 0, badges: checkBadges(d)
       };
+      updateProfileMenuStats();
     }
   } catch(e) { console.warn("loadStats:", e); }
 }
 
 function checkBadges(d) {
   return BADGES_DEF.filter(b => b.check(d)).map(b => b.id);
+}
+
+function updateProfileMenuStats() {
+  const level = [...LEVELS].reverse().find(l => stats.totalMinutes >= l.min);
+  const ms  = document.getElementById("menuStreak");   if(ms) ms.innerText   = stats.streak + "🔥";
+  const ml  = document.getElementById("menuLevel");    if(ml) ml.innerText   = level ? level.name : "Beginner";
+  const mse = document.getElementById("menuSessions"); if(mse) mse.innerText = stats.totalSessions;
 }
 
 
@@ -761,6 +827,7 @@ function renderStats() {
     row.appendChild(el);
   });
 
+  // FIX: chart renders correctly with labels below bars
   const chart  = document.getElementById("weekChart");
   chart.innerHTML = "";
   const wd     = stats.weekData || [0,0,0,0,0,0,0];
@@ -770,7 +837,8 @@ function renderStats() {
     const wrap = document.createElement("div"); wrap.className = "bar-day";
     const bar  = document.createElement("div");
     bar.className  = "bar" + (i === today ? " today" : "");
-    bar.style.height = Math.max(3, (val / maxVal) * 52) + "px";
+    // height is % of the bar area (chart height minus label space = 54px usable)
+    bar.style.height = Math.max(3, (val / maxVal) * 50) + "px";
     const lbl  = document.createElement("div"); lbl.className = "bar-lbl"; lbl.textContent = DAYS[i];
     wrap.appendChild(bar); wrap.appendChild(lbl);
     chart.appendChild(wrap);
@@ -784,10 +852,7 @@ function renderStats() {
 async function renderHistory() {
   if (!window.currentUser) return;
   try {
-    const q    = query(
-      collection(db, "users", window.currentUser.uid, "sessions"),
-      orderBy("timestamp","desc"), limit(10)
-    );
+    const q    = query(collection(db,"users",window.currentUser.uid,"sessions"), orderBy("timestamp","desc"), limit(10));
     const snap = await getDocs(q);
     const list = document.getElementById("historyList");
     list.innerHTML = "";
@@ -807,17 +872,16 @@ async function renderHistory() {
 
 
 // ══════════════════════════════════════════════════════════
-//  LEADERBOARDS
+//  LEADERBOARDS — real-time via onSnapshot
 // ══════════════════════════════════════════════════════════
 async function displayLeaderboard() {
   const room = getRoom();
   if (!room) {
-    document.getElementById("leaderboard").innerHTML =
-      "<li style='color:var(--muted)'>Enter a room name</li>";
+    document.getElementById("leaderboard").innerHTML = "<li style='color:var(--muted)'>Enter a room name</li>";
     return;
   }
   if (roomUnsubscribe) { roomUnsubscribe(); roomUnsubscribe = null; }
-  const q = query(collection(db, "rooms", room, "scores"), orderBy("value","desc"), limit(5));
+  const q = query(collection(db,"rooms",room,"scores"), orderBy("value","desc"), limit(5));
   roomUnsubscribe = onSnapshot(q, snap => {
     const list = document.getElementById("leaderboard");
     list.innerHTML = "";
@@ -836,7 +900,7 @@ async function displayLeaderboard() {
 
 async function displayGlobalLeaderboard() {
   if (globalUnsubscribe) { globalUnsubscribe(); globalUnsubscribe = null; }
-  const q = query(collection(db, "users"), orderBy("total","desc"), limit(10));
+  const q = query(collection(db,"users"), orderBy("total","desc"), limit(10));
   globalUnsubscribe = onSnapshot(q, snap => {
     const list = document.getElementById("globalLeaderboard");
     list.innerHTML = "";
@@ -863,7 +927,7 @@ function shareScore() {
   const goal  = document.getElementById("focusGoal")?.value.trim() || "Deep work";
   const text  = `⚡ FocusFlow Session\n🎯 ${goal}\n⏱️ ${time} · 🚫 ${dist} distractions · 🏆 ${score} pts\n\nfocus-app-six-hazel.vercel.app`;
   if (navigator.share) {
-    navigator.share({ title: "FocusFlow Score", text }).catch(() => {});
+    navigator.share({ title:"FocusFlow Score", text }).catch(() => {});
   } else {
     navigator.clipboard.writeText(text)
       .then(() => alert("Score copied! Paste anywhere 🎉"))
@@ -879,33 +943,27 @@ window.shareScore = shareScore;
 function launchConfetti() {
   const canvas = document.getElementById("confettiCanvas");
   canvas.style.display = "block";
-  const ctx  = canvas.getContext("2d");
-  canvas.width  = window.innerWidth;
-  canvas.height = window.innerHeight;
-  const pieces  = Array.from({ length: 100 }, () => ({
-    x: Math.random() * canvas.width,
-    y: Math.random() * canvas.height - canvas.height,
-    w: Math.random() * 9 + 4, h: Math.random() * 5 + 3,
-    color: ["#22d47a","#38bdf8","#f87171","#fbbf24","#818cf8"][Math.floor(Math.random() * 5)],
-    speed: Math.random() * 3.5 + 1.5,
-    angle: Math.random() * Math.PI * 2,
-    spin:  (Math.random() - 0.5) * 0.18
+  const ctx = canvas.getContext("2d");
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  const pieces = Array.from({length:100}, () => ({
+    x: Math.random()*canvas.width,
+    y: Math.random()*canvas.height - canvas.height,
+    w: Math.random()*9+4, h: Math.random()*5+3,
+    color: ["#22d47a","#38bdf8","#f87171","#fbbf24","#818cf8"][Math.floor(Math.random()*5)],
+    speed: Math.random()*3.5+1.5, angle: Math.random()*Math.PI*2, spin: (Math.random()-0.5)*0.18
   }));
   let frames = 0;
   const draw = () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
     pieces.forEach(p => {
       p.y += p.speed; p.angle += p.spin;
-      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle);
-      ctx.fillStyle = p.color; ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.angle);
+      ctx.fillStyle = p.color; ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
       ctx.restore();
     });
     frames++;
     if (frames < 200) requestAnimationFrame(draw);
-    else {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      canvas.style.display = "none";
-    }
+    else { ctx.clearRect(0,0,canvas.width,canvas.height); canvas.style.display="none"; }
   };
   draw();
 }
@@ -918,6 +976,10 @@ document.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
   if (e.code === "Space") { e.preventDefault(); running ? stopSession() : startSession(); }
   if (e.code === "KeyR" && !running) resetUI();
+  if (e.code === "Escape") {
+    document.getElementById("profileMenu").style.display = "none";
+    document.getElementById("distractionModal").style.display = "none";
+  }
 });
 
 

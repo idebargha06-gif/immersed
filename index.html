@@ -10,17 +10,23 @@
 </head>
 <body>
 
-<!-- BG ORBS (shared) -->
 <div class="bg-orb orb1"></div>
 <div class="bg-orb orb2"></div>
 <div class="bg-orb orb3"></div>
 
+<!-- AUTH LOADING OVERLAY -->
+<div id="authLoader" class="auth-loader">
+  <div class="auth-loader-inner">
+    <div class="loader-ring"></div>
+    <p>Loading…</p>
+  </div>
+</div>
+
 <!-- ═══════════════════════════════════
      LANDING PAGE
 ═══════════════════════════════════ -->
-<div id="landingPage">
+<div id="landingPage" style="display:none;">
 
-  <!-- NAVBAR -->
   <nav class="nav">
     <div class="nav-logo">⚡ FocusFlow</div>
     <div class="nav-links">
@@ -31,20 +37,10 @@
     <button class="btn-nav-signin" id="btnSignIn">Sign in with Google</button>
   </nav>
 
-  <!-- HERO -->
   <section class="hero">
     <div class="hero-badge">🔥 <span id="liveMinutes">—</span> minutes focused today</div>
-
-    <h1 class="hero-title">
-      Your focus.<br/>
-      <span class="grad-text">Measured. Rewarded.</span>
-    </h1>
-
-    <p class="hero-sub">
-      A competitive focus timer with real-time leaderboards, Pomodoro cycles,
-      ambient sounds, and distraction tracking. Sign in and start your first session in 30 seconds.
-    </p>
-
+    <h1 class="hero-title">Your focus.<br/><span class="grad-text">Measured. Rewarded.</span></h1>
+    <p class="hero-sub">A competitive focus timer with real-time leaderboards, Pomodoro cycles, ambient sounds, and distraction tracking. Sign in and start in 30 seconds.</p>
     <div class="hero-cta">
       <button class="btn-primary" id="btnHeroCTA">
         <svg width="16" height="16" viewBox="0 0 18 18" style="flex-shrink:0"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
@@ -52,18 +48,16 @@
       </button>
       <button class="btn-ghost" onclick="document.getElementById('leaderboard-preview').scrollIntoView({behavior:'smooth'})">See Leaderboard</button>
     </div>
-
-    <!-- App preview card -->
     <div class="app-preview">
       <div class="preview-ring">
         <svg viewBox="0 0 200 200">
           <defs>
             <linearGradient id="previewGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#00ff88"/>
-              <stop offset="100%" stop-color="#00cfff"/>
+              <stop offset="0%" stop-color="#22d47a"/>
+              <stop offset="100%" stop-color="#38bdf8"/>
             </linearGradient>
           </defs>
-          <circle class="ring-bg"   cx="100" cy="100" r="88"/>
+          <circle class="ring-bg" cx="100" cy="100" r="88"/>
           <circle class="ring-demo" cx="100" cy="100" r="88"/>
         </svg>
         <div class="preview-time">25:00</div>
@@ -76,7 +70,6 @@
     </div>
   </section>
 
-  <!-- LIVE STATS BAR -->
   <div class="stats-bar">
     <div class="stat-item"><span class="stat-num" id="statSessions">—</span><span class="stat-lbl">Sessions Today</span></div>
     <div class="stat-divider"></div>
@@ -87,7 +80,6 @@
     <div class="stat-item"><span class="stat-num">Free</span><span class="stat-lbl">Always</span></div>
   </div>
 
-  <!-- FEATURES -->
   <section class="features" id="features">
     <div class="section-tag">Features</div>
     <h2 class="section-heading">Everything to keep you <span class="grad-text">in the zone</span></h2>
@@ -95,26 +87,24 @@
       <div class="feature-card"><div class="feature-icon">⏱️</div><h3>Pomodoro Timer</h3><p>25 min focus → 5 min break, auto-cycling. Custom durations up to 3 hours. Visual ring counts down live.</p></div>
       <div class="feature-card"><div class="feature-icon">🏆</div><h3>Live Leaderboards</h3><p>Compete in rooms or globally. Real-time scores update as sessions finish. Your rank always highlighted.</p></div>
       <div class="feature-card"><div class="feature-icon">🎵</div><h3>Ambient Sounds</h3><p>Lofi, rain, café, forest, white noise. Mix freely. Volume control. Auto-plays with your session.</p></div>
-      <div class="feature-card"><div class="feature-icon">🚫</div><h3>Distraction Shield</h3><p>Detects tab switches and mouse idle. Logs every distraction with timestamp. Keeps you honest.</p></div>
+      <div class="feature-card"><div class="feature-icon">🚫</div><h3>Distraction Shield</h3><p>Detects tab switches, visibility changes, and mouse idle. Logs every distraction with timestamp.</p></div>
       <div class="feature-card"><div class="feature-icon">📈</div><h3>Session History</h3><p>Every session saved. Weekly charts, streaks, badges and levels. Watch yourself improve over time.</p></div>
       <div class="feature-card"><div class="feature-icon">🔗</div><h3>Focus Rooms</h3><p>Create a room, share the link. Friends auto-join. Compete on the same live leaderboard.</p></div>
     </div>
   </section>
 
-  <!-- HOW IT WORKS -->
   <section class="how" id="how">
     <div class="section-tag">How it works</div>
     <h2 class="section-heading">Up and running in <span class="grad-text">30 seconds</span></h2>
     <div class="steps">
-      <div class="step"><div class="step-num">01</div><h3>Sign in with Google</h3><p>One click. Your scores, history and streak are saved to your account forever.</p></div>
+      <div class="step"><div class="step-num">01</div><h3>Sign in with Google</h3><p>One click. Your scores, history and streak are saved forever.</p></div>
       <div class="step-arrow">→</div>
-      <div class="step"><div class="step-num">02</div><h3>Set your goal & timer</h3><p>Write what you're working on. Pick a duration or use Pomodoro. Hit Start.</p></div>
+      <div class="step"><div class="step-num">02</div><h3>Set your goal & timer</h3><p>Write what you're working on. Pick a duration or use Pomodoro.</p></div>
       <div class="step-arrow">→</div>
       <div class="step"><div class="step-num">03</div><h3>Focus & climb the board</h3><p>Every distraction-free minute earns points. Finish sessions to unlock badges.</p></div>
     </div>
   </section>
 
-  <!-- LEADERBOARD PREVIEW -->
   <section class="lb-preview-section" id="leaderboard-preview">
     <div class="section-tag">Live Rankings</div>
     <h2 class="section-heading">Global <span class="grad-text">Leaderboard</span></h2>
@@ -125,10 +115,9 @@
     <button class="btn-primary" style="margin-top:28px" id="btnLbCTA">Join the competition →</button>
   </section>
 
-  <!-- FINAL CTA -->
   <section class="cta-section">
     <h2>Start focusing.<br/><span class="grad-text">Right now.</span></h2>
-    <p>Free forever. No credit card. No downloads. Just focus.</p>
+    <p>Free forever. No credit card. No downloads.</p>
     <button class="btn-primary btn-large" id="btnFinalCTA">
       <svg width="18" height="18" viewBox="0 0 18 18" style="flex-shrink:0"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
       Sign in with Google
@@ -148,7 +137,7 @@
      MAIN APP
 ═══════════════════════════════════ -->
 <div id="mainApp" style="display:none;">
-  <div class="app">
+  <div class="app-shell">
 
     <!-- HEADER -->
     <header class="header">
@@ -161,167 +150,201 @@
       </div>
       <div class="header-right">
         <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
-        <div class="user-pill">
+        <div class="user-pill" onclick="toggleProfileMenu()" style="cursor:pointer">
           <img id="userAvatar" src="" alt="" onerror="this.style.display='none'"/>
           <span id="userName"></span>
-          <button class="btn-signout" onclick="doSignOut()" title="Sign out">↩</button>
+          <span class="pill-arrow">▾</span>
+        </div>
+        <!-- Profile dropdown -->
+        <div class="profile-menu" id="profileMenu" style="display:none">
+          <div class="profile-menu-header">
+            <img id="menuAvatar" src="" alt=""/>
+            <div>
+              <div class="menu-name" id="menuName"></div>
+              <div class="menu-email" id="menuEmail"></div>
+            </div>
+          </div>
+          <div class="profile-menu-stats">
+            <div class="ms-item"><span id="menuStreak">0🔥</span><span>Streak</span></div>
+            <div class="ms-item"><span id="menuLevel">—</span><span>Level</span></div>
+            <div class="ms-item"><span id="menuSessions">0</span><span>Sessions</span></div>
+          </div>
+          <button class="menu-btn" onclick="toggleTheme();toggleProfileMenu()">🌙 Toggle Theme</button>
+          <button class="menu-btn menu-btn-danger" onclick="doSignOut()">↩ Sign Out</button>
         </div>
       </div>
     </header>
 
-    <!-- QUOTE -->
     <div class="quote-bar" id="quoteBar"></div>
 
-    <!-- MAIN CARD -->
-    <main class="card">
+    <!-- TWO COLUMN LAYOUT ON DESKTOP -->
+    <div class="app-cols">
 
-      <div class="input-group">
-        <label>🎯 What are you working on?</label>
-        <input id="focusGoal" placeholder="e.g. Finish chapter 3, complete project proposal…" autocomplete="off"/>
-      </div>
+      <!-- LEFT: MAIN CARD -->
+      <div class="app-left">
+        <main class="card">
 
-      <!-- Room section -->
-      <div id="roomSection" style="display:none;">
-        <div class="room-row">
-          <div class="input-group" style="flex:1">
-            <label>Room Name</label>
-            <input id="roomInput" placeholder="e.g. deep-work" autocomplete="off"/>
+          <div class="input-group">
+            <label>🎯 What are you working on?</label>
+            <input id="focusGoal" placeholder="e.g. Finish chapter 3, complete project proposal…" autocomplete="off"/>
           </div>
-          <button class="btn-invite" onclick="copyInviteLink()">🔗 Invite</button>
-        </div>
-        <div class="invite-toast" id="inviteToast">Link copied! 🎉</div>
-      </div>
 
-      <!-- Timer ring -->
-      <div class="timer-section">
-        <div class="timer-ring">
-          <svg class="ring-svg" viewBox="0 0 200 200">
-            <defs>
-              <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%"   stop-color="#00ff88"/>
-                <stop offset="100%" stop-color="#00cfff"/>
-              </linearGradient>
-            </defs>
-            <circle class="ring-bg"       cx="100" cy="100" r="88"/>
-            <circle class="ring-progress" id="ringProgress" cx="100" cy="100" r="88"/>
-          </svg>
-          <div class="timer-inner">
-            <div class="timer"       id="timer">00:00</div>
-            <div class="timer-pct"   id="timerPct">—</div>
-            <div class="timer-label" id="status">Ready</div>
+          <div id="roomSection" style="display:none;">
+            <div class="room-row">
+              <div class="input-group" style="flex:1">
+                <label>Room Name</label>
+                <input id="roomInput" placeholder="e.g. deep-work" autocomplete="off"/>
+              </div>
+              <button class="btn-invite" onclick="copyInviteLink()">🔗 Invite</button>
+            </div>
+            <div class="invite-toast" id="inviteToast">Link copied! 🎉</div>
           </div>
-        </div>
-      </div>
 
-      <!-- Pomodoro toggle -->
-      <div class="pomodoro-row">
-        <button class="btn-pomo" id="pomodoroBtn" onclick="togglePomodoro()">🍅 Pomodoro Mode</button>
-        <span class="pomo-status" id="pomoStatus"></span>
-      </div>
+          <!-- Timer ring -->
+          <div class="timer-section">
+            <div class="timer-ring">
+              <svg class="ring-svg" viewBox="0 0 200 200">
+                <defs>
+                  <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#22d47a"/>
+                    <stop offset="100%" stop-color="#38bdf8"/>
+                  </linearGradient>
+                </defs>
+                <circle class="ring-bg" cx="100" cy="100" r="88"/>
+                <circle class="ring-progress" id="ringProgress" cx="100" cy="100" r="88"/>
+              </svg>
+              <div class="timer-inner">
+                <div class="timer" id="timer">00:00</div>
+                <div class="timer-pct" id="timerPct">—</div>
+                <div class="timer-label" id="status">Ready</div>
+              </div>
+            </div>
+          </div>
 
-      <!-- Time presets -->
-      <div class="time-select">
-        <button onclick="setTime(300,this)">5m</button>
-        <button onclick="setTime(600,this)">10m</button>
-        <button onclick="setTime(1500,this)">25m</button>
-        <button onclick="setTime(3600,this)">1hr</button>
-        <button onclick="setTime(7200,this)">2hr</button>
-        <button onclick="setTime(10800,this)">3hr</button>
-        <button onclick="openCustomTime()" id="btnCustom">Custom</button>
-      </div>
+          <div class="pomodoro-row">
+            <button class="btn-pomo" id="pomodoroBtn" onclick="togglePomodoro()">🍅 Pomodoro Mode</button>
+            <span class="pomo-status" id="pomoStatus"></span>
+          </div>
 
-      <!-- Custom time -->
-      <div class="custom-time-row" id="customTimeRow" style="display:none;">
-        <input type="number" id="customMinutes" placeholder="Minutes" min="1" max="480"/>
-        <button onclick="applyCustomTime()">Set</button>
-      </div>
+          <div class="time-select">
+            <button onclick="setTime(300,this)">5m</button>
+            <button onclick="setTime(600,this)">10m</button>
+            <button onclick="setTime(1500,this)">25m</button>
+            <button onclick="setTime(3600,this)">1hr</button>
+            <button onclick="setTime(7200,this)">2hr</button>
+            <button onclick="setTime(10800,this)">3hr</button>
+            <button onclick="openCustomTime()" id="btnCustom">Custom</button>
+          </div>
 
-      <!-- Controls -->
-      <div class="controls">
-        <button class="btn-start" onclick="startSession()">▶ Start</button>
-        <button class="btn-stop"  onclick="stopSession()">■ Stop</button>
-      </div>
+          <div class="custom-time-row" id="customTimeRow" style="display:none;">
+            <input type="number" id="customMinutes" placeholder="Minutes" min="1" max="480"/>
+            <button onclick="applyCustomTime()">Set</button>
+          </div>
 
-      <!-- Ambient sounds -->
-      <div class="sounds-section">
-        <div class="sounds-label">🎵 Ambient Sounds</div>
-        <div class="sounds-grid">
-          <button class="sound-btn" data-sound="lofi"   onclick="toggleSound(this)">☕ Lofi</button>
-          <button class="sound-btn" data-sound="rain"   onclick="toggleSound(this)">🌧️ Rain</button>
-          <button class="sound-btn" data-sound="cafe"   onclick="toggleSound(this)">🏙️ Café</button>
-          <button class="sound-btn" data-sound="forest" onclick="toggleSound(this)">🌿 Forest</button>
-          <button class="sound-btn" data-sound="white"  onclick="toggleSound(this)">〰️ White</button>
-        </div>
-        <div class="volume-row">
-          <span>🔈</span>
-          <input type="range" id="volumeSlider" min="0" max="100" value="40" oninput="setVolume(this.value)"/>
-          <span>🔊</span>
-        </div>
-        <p class="sound-credit">Sounds via Mixkit / Pixabay (CC0)</p>
-      </div>
+          <div class="controls">
+            <button class="btn-start" onclick="startSession()">▶ Start</button>
+            <button class="btn-stop" onclick="stopSession()">■ Stop</button>
+          </div>
 
-      <!-- Summary -->
-      <div class="summary-box">
-        <div class="summary-grid">
-          <div class="summary-stat"><span class="stat-value" id="statTime">--</span><span class="stat-label">Time</span></div>
-          <div class="summary-stat"><span class="stat-value" id="statDistractions">--</span><span class="stat-label">Distractions</span></div>
-          <div class="summary-stat"><span class="stat-value" id="statScore">--</span><span class="stat-label">Score</span></div>
-        </div>
-        <div id="distractionLog" class="distraction-log"></div>
-        <button class="btn-share" id="shareBtn" style="display:none" onclick="shareScore()">📤 Share Score</button>
-      </div>
+          <!-- SCORE EXPLANATION -->
+          <div class="score-info">
+            <div class="score-info-title">⚡ How scoring works</div>
+            <div class="score-info-body">
+              <span>+1 pt per second focused</span>
+              <span class="score-sep">·</span>
+              <span>−20 pts per distraction</span>
+              <span class="score-sep">·</span>
+              <span>minimum 0</span>
+            </div>
+          </div>
 
-    </main>
+          <!-- Ambient sounds -->
+          <div class="sounds-section">
+            <div class="sounds-label">🎵 Ambient Sounds</div>
+            <div class="sounds-grid">
+              <button class="sound-btn" data-sound="lofi"   onclick="toggleSound(this)">☕ Lofi</button>
+              <button class="sound-btn" data-sound="rain"   onclick="toggleSound(this)">🌧️ Rain</button>
+              <button class="sound-btn" data-sound="cafe"   onclick="toggleSound(this)">🏙️ Café</button>
+              <button class="sound-btn" data-sound="forest" onclick="toggleSound(this)">🌿 Forest</button>
+              <button class="sound-btn" data-sound="white"  onclick="toggleSound(this)">〰️ White</button>
+            </div>
+            <div class="volume-row">
+              <span>🔈</span>
+              <input type="range" id="volumeSlider" min="0" max="100" value="40" oninput="setVolume(this.value)"/>
+              <span>🔊</span>
+            </div>
+            <p class="sound-credit">Sounds via Pixabay (CC0)</p>
+          </div>
 
-    <!-- STATS DASHBOARD -->
-    <section class="dash-section collapsible-section">
-      <div class="section-header">
-        <h3 class="section-title">📊 My Stats</h3>
-        <button class="toggle-btn" onclick="toggleSection('dashBody',this)">Hide</button>
-      </div>
-      <div id="dashBody">
-        <div class="dash-grid">
-          <div class="dash-card"><span class="dash-val" id="dashStreak">0🔥</span><span class="dash-lbl">Day Streak</span></div>
-          <div class="dash-card"><span class="dash-val" id="dashTotal">0</span><span class="dash-lbl">Sessions</span></div>
-          <div class="dash-card"><span class="dash-val" id="dashHours">0h</span><span class="dash-lbl">Focus Hours</span></div>
-          <div class="dash-card"><span class="dash-val" id="dashLevel">—</span><span class="dash-lbl">Level</span></div>
-        </div>
-        <div class="badges-row" id="badgesRow"></div>
-        <div class="chart-wrap">
-          <div class="chart-label">This Week (minutes)</div>
-          <div class="bar-chart" id="weekChart"></div>
-        </div>
-      </div>
-    </section>
+          <!-- Summary -->
+          <div class="summary-box">
+            <div class="summary-grid">
+              <div class="summary-stat"><span class="stat-value" id="statTime">--</span><span class="stat-label">Time</span></div>
+              <div class="summary-stat"><span class="stat-value" id="statDistractions">--</span><span class="stat-label">Distractions</span></div>
+              <div class="summary-stat"><span class="stat-value" id="statScore">--</span><span class="stat-label">Score</span></div>
+            </div>
+            <div id="distractionLog" class="distraction-log"></div>
+            <button class="btn-share" id="shareBtn" style="display:none" onclick="shareScore()">📤 Share Score</button>
+          </div>
 
-    <!-- SESSION HISTORY -->
-    <section class="history-section collapsible-section">
-      <div class="section-header">
-        <h3 class="section-title">📋 Session History</h3>
-        <button class="toggle-btn" onclick="toggleSection('historyBody',this)">Hide</button>
-      </div>
-      <div id="historyBody">
-        <ul id="historyList" class="history-list"></ul>
-      </div>
-    </section>
+        </main>
+      </div><!-- /app-left -->
 
-    <!-- LEADERBOARD -->
-    <section class="leaderboard-section collapsible-section">
-      <div class="section-header">
-        <h3 class="section-title">🏆 Leaderboard</h3>
-        <button class="toggle-btn" onclick="toggleSection('leaderboardBody',this)">Hide</button>
-      </div>
-      <div id="leaderboardBody">
-        <div class="leaderboard-tabs">
-          <button data-tab="room"   onclick="switchBoard('room',this)">Room</button>
-          <button data-tab="global" onclick="switchBoard('global',this)" class="active">Global</button>
-        </div>
-        <div id="roomBoard"   style="display:none;"><ul id="leaderboard"       class="board-list"></ul></div>
-        <div id="globalBoard"               ><ul id="globalLeaderboard" class="board-list"></ul></div>
-      </div>
-    </section>
+      <!-- RIGHT: STATS + HISTORY + LEADERBOARD -->
+      <div class="app-right">
 
-    <!-- DISTRACTION WARNING MODAL -->
+        <!-- STATS -->
+        <section class="collapsible-section">
+          <div class="section-header">
+            <h3 class="section-title">📊 My Stats</h3>
+            <button class="toggle-btn" onclick="toggleSection('dashBody',this)">Hide</button>
+          </div>
+          <div id="dashBody">
+            <div class="dash-grid">
+              <div class="dash-card"><span class="dash-val" id="dashStreak">0🔥</span><span class="dash-lbl">Day Streak</span></div>
+              <div class="dash-card"><span class="dash-val" id="dashTotal">0</span><span class="dash-lbl">Sessions</span></div>
+              <div class="dash-card"><span class="dash-val" id="dashHours">0h</span><span class="dash-lbl">Focus Hours</span></div>
+              <div class="dash-card"><span class="dash-val" id="dashLevel">—</span><span class="dash-lbl">Level</span></div>
+            </div>
+            <div class="badges-row" id="badgesRow"></div>
+            <div class="chart-wrap">
+              <div class="chart-label">This Week (minutes)</div>
+              <div class="bar-chart" id="weekChart"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- HISTORY -->
+        <section class="collapsible-section">
+          <div class="section-header">
+            <h3 class="section-title">📋 Session History</h3>
+            <button class="toggle-btn" onclick="toggleSection('historyBody',this)">Hide</button>
+          </div>
+          <div id="historyBody">
+            <ul id="historyList" class="history-list"></ul>
+          </div>
+        </section>
+
+        <!-- LEADERBOARD -->
+        <section class="collapsible-section">
+          <div class="section-header">
+            <h3 class="section-title">🏆 Leaderboard</h3>
+            <button class="toggle-btn" onclick="toggleSection('leaderboardBody',this)">Hide</button>
+          </div>
+          <div id="leaderboardBody">
+            <div class="leaderboard-tabs">
+              <button data-tab="room"   onclick="switchBoard('room',this)">Room</button>
+              <button data-tab="global" onclick="switchBoard('global',this)" class="active">Global</button>
+            </div>
+            <div id="roomBoard"   style="display:none;"><ul id="leaderboard" class="board-list"></ul></div>
+            <div id="globalBoard"><ul id="globalLeaderboard" class="board-list"></ul></div>
+          </div>
+        </section>
+
+      </div><!-- /app-right -->
+    </div><!-- /app-cols -->
+
+    <!-- DISTRACTION MODAL -->
     <div class="modal-overlay" id="distractionModal" style="display:none;">
       <div class="modal-box">
         <div class="modal-icon">😬</div>
@@ -331,16 +354,12 @@
       </div>
     </div>
 
-    <!-- CONFETTI -->
     <canvas id="confettiCanvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999;display:none;"></canvas>
-
     <footer class="app-footer">⚡ FocusFlow &nbsp;·&nbsp; Space = start/stop &nbsp;·&nbsp; R = reset</footer>
 
-  </div>
+  </div><!-- /app-shell -->
 </div><!-- /mainApp -->
 
-<script type="module"
-src="script.js"></script>
-
+<script type="module" src="script.js"></script>
 </body>
 </html>
