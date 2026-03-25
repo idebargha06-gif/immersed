@@ -30,11 +30,10 @@ export function createAppTemplate() {
             </nav>
 
             <div class="topbar__actions">
-              <button id="navAppButton" class="button button--ghost" data-action="go-app" type="button">Open workspace</button>
               <button id="landingSignInButton" class="button button--primary" data-action="sign-in" type="button">Sign in with Google</button>
               <button id="landingUserButton" class="user-chip" data-action="go-app" type="button" hidden>
                 <span id="landingUserAvatar" class="avatar avatar--small"></span>
-                <span id="landingUserName">Workspace</span>
+                <span id="landingUserName" class="sr-only">Workspace</span>
               </button>
             </div>
           </header>
@@ -200,12 +199,19 @@ export function createAppTemplate() {
             </div>
 
             <div class="workspace-bar__actions">
-              <button class="icon-button" data-action="toggle-theme" type="button" aria-label="Toggle theme">
-                <span id="themeButtonLabel">Theme</span>
+              <div id="workspaceStreakBadge" class="streak-chip">
+                <span class="streak-chip__flame" aria-hidden="true"></span>
+                <strong id="workspaceStreakValue">0</strong>
+              </div>
+              <button id="themeToggleButton" class="theme-toggle" data-action="toggle-theme" type="button" aria-label="Toggle theme">
+                <span class="theme-toggle__track">
+                  <span id="themeToggleThumb" class="theme-toggle__thumb"></span>
+                </span>
+                <span id="themeButtonLabel">Dark</span>
               </button>
               <button id="profileButton" class="profile-button" data-action="toggle-profile" type="button">
                 <span id="profileAvatar" class="avatar avatar--small"></span>
-                <span class="profile-button__meta">
+                <span class="profile-button__meta sr-only">
                   <span id="profileButtonName">Workspace</span>
                   <small id="profileButtonStreak">0 day streak</small>
                 </span>
@@ -266,11 +272,19 @@ export function createAppTemplate() {
                           <span class="room-panel__label">Active room</span>
                           <strong id="activeRoomLabel">None</strong>
                         </div>
-                        <div class="room-panel__meta-item">
-                          <span class="room-panel__label">Presence</span>
-                          <strong id="roomPresenceCount">0 people</strong>
-                        </div>
+                      <div class="room-panel__meta-item">
+                        <span class="room-panel__label">Presence</span>
+                        <strong id="roomPresenceCount">0 people</strong>
                       </div>
+                      <div class="room-panel__meta-item">
+                        <span class="room-panel__label">Owner</span>
+                        <strong id="roomOwnerLabel">Waiting</strong>
+                      </div>
+                      <div class="room-panel__meta-item">
+                        <span class="room-panel__label">Sync</span>
+                        <strong id="roomSyncLabel">Idle</strong>
+                      </div>
+                    </div>
 
                       <div id="roomPresenceList" class="participant-list"></div>
                     </div>
@@ -322,7 +336,7 @@ export function createAppTemplate() {
                 <div class="button-row">
                   <button id="pomodoroButton" class="button button--ghost" data-action="toggle-pomodoro" type="button">Pomodoro</button>
                   <button id="startButton" class="button button--primary" data-action="start-session" type="button">Start session</button>
-                  <button class="button button--secondary" data-action="stop-session" type="button">Stop session</button>
+                  <button id="stopButton" class="button button--secondary" data-action="stop-session" type="button">Stop session</button>
                 </div>
 
                 <div class="meta-grid">

@@ -56,6 +56,11 @@ export function bootstrapApp() {
     onSessionFinished: sessions.handleTimerCompletion
   });
 
+  rooms.setHandlers({
+    onRemoteSessionStart: sessions.startRemoteSession,
+    onRemoteSessionStop: sessions.stopRemoteSession
+  });
+
   function bindGlobalEvents() {
     root.addEventListener("click", async (event) => {
       const actionTarget = event.target.closest("[data-action]");

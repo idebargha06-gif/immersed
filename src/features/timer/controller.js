@@ -158,13 +158,17 @@ export function createTimerController({ store, feedback }) {
       return;
     }
 
+    const initialTime = state.timer.timeLeft > 0 ? state.timer.timeLeft : state.timer.selectedDuration;
+
     store.setState((current) => ({
       ...current,
       timer: {
         ...current.timer,
         running: true,
         phaseStartedAt: Date.now(),
-        phaseInitialTime: current.timer.timeLeft,
+        totalTime: initialTime,
+        timeLeft: initialTime,
+        phaseInitialTime: initialTime,
         distractionCount: 0,
         distractionPenaltyTotal: 0,
         distractionLog: [],
@@ -188,6 +192,42 @@ export function createTimerController({ store, feedback }) {
     }));
   }
 
+  function syncRemoteTimer(control) {
+    if (!control?.startedAt) {
+      return;
+    }
+
+    const nextTimeLeft = getPreciseTimeLeft(control.startedAt, control.totalTime);
+    stopIntervals();
+
+    store.setState((state) => ({
+      ...state,
+      timer: {
+        ...state.timer,
+        running: control.status === "running",
+        selectedDuration: control.selectedDuration || state.timer.selectedDuration,
+        totalTime: control.totalTime,
+        timeLeft: nextTimeLeft,
+        sessionMode: control.sessionMode || state.timer.sessionMode,
+        pomodoroEnabled: Boolean(control.pomodoroEnabled),
+        pomodoroPhase: control.pomodoroPhase || "work",
+        pomodoroCycle: control.pomodoroCycle || 0,
+        cumulativeFocusSeconds: control.cumulativeFocusSeconds || 0,
+        phaseStartedAt: control.startedAt,
+        phaseInitialTime: control.totalTime,
+        distractionCount: 0,
+        distractionPenaltyTotal: 0,
+        distractionLog: [],
+        blurStartedAt: null,
+        lastActivityAt: Date.now()
+      }
+    }));
+
+    if (control.status === "running") {
+      beginTicker();
+    }
+  }
+
   function reset() {
     stopIntervals();
     store.setState((state) => ({
@@ -197,6 +237,29 @@ export function createTimerController({ store, feedback }) {
         running: false,
         totalTime: state.timer.selectedDuration,
         timeLeft: state.timer.selectedDuration,
+        phaseStartedAt: null,
+        phaseInitialTime: state.timer.selectedDuration,
+        distractionCount: 0,
+        distractionPenaltyTotal: 0,
+        distractionLog: [],
+        blurStartedAt: null,
+        pomodoroEnabled: false,
+        pomodoroPhase: "work",
+        pomodoroCycle: 0,
+        cumulativeFocusSeconds: 0
+      }
+    }));
+  }
+
+  function clearAfterSession() {
+    stopIntervals();
+    store.setState((state) => ({
+      ...state,
+      timer: {
+        ...state.timer,
+        running: false,
+        totalTime: state.timer.selectedDuration,
+        timeLeft: 0,
         phaseStartedAt: null,
         phaseInitialTime: state.timer.selectedDuration,
         distractionCount: 0,
@@ -362,8 +425,11 @@ export function createTimerController({ store, feedback }) {
 
   function getFocusedSeconds() {
     const state = store.getState();
-    const liveFocused = state.timer.running && (!state.timer.pomodoroEnabled || state.timer.pomodoroPhase === "work")
-      ? state.timer.phaseInitialTime - state.timer.timeLeft
+    const liveTimeLeft = state.timer.phaseStartedAt
+      ? getPreciseTimeLeft(state.timer.phaseStartedAt, state.timer.phaseInitialTime)
+      : state.timer.timeLeft;
+    const liveFocused = state.timer.phaseStartedAt && (!state.timer.pomodoroEnabled || state.timer.pomodoroPhase === "work")
+      ? state.timer.phaseInitialTime - liveTimeLeft
       : 0;
     return Math.max(0, state.timer.cumulativeFocusSeconds + liveFocused);
   }
@@ -389,7 +455,9 @@ export function createTimerController({ store, feedback }) {
     togglePomodoro,
     start,
     stopRuntime,
+    syncRemoteTimer,
     reset,
+    clearAfterSession,
     setSessionMode,
     getSessionDiagnostics
   };

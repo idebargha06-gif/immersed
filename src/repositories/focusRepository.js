@@ -184,6 +184,79 @@ export function subscribeRoomPresence(roomId, callback) {
   });
 }
 
+export async function ensureRoom({ roomId, user }) {
+  const roomRef = doc(db, "rooms", roomId);
+  const roomSnapshot = await getDoc(roomRef);
+  const now = Date.now();
+
+  if (!roomSnapshot.exists()) {
+    const roomData = {
+      ownerUid: user?.uid || "",
+      ownerName: user?.displayName || user?.email || "Anonymous",
+      createdAt: now,
+      updatedAt: now,
+      sessionControl: {
+        status: "idle",
+        revision: 0,
+        updatedAt: now
+      }
+    };
+    await setDoc(roomRef, roomData, { merge: true });
+    return roomData;
+  }
+
+  const data = roomSnapshot.data();
+  if (!data.ownerUid && user) {
+    await setDoc(roomRef, {
+      ownerUid: user.uid,
+      ownerName: user.displayName || user.email || "Anonymous",
+      updatedAt: now
+    }, { merge: true });
+    return {
+      ...data,
+      ownerUid: user.uid,
+      ownerName: user.displayName || user.email || "Anonymous"
+    };
+  }
+
+  return data;
+}
+
+export function subscribeRoom(roomId, callback) {
+  return onSnapshot(doc(db, "rooms", roomId), (snapshot) => {
+    const data = snapshot.exists() ? snapshot.data() : {};
+    callback({
+      ownerUid: data.ownerUid || "",
+      ownerName: data.ownerName || "",
+      sessionControl: data.sessionControl || null
+    });
+  });
+}
+
+export async function upsertRoomSessionControl({ roomId, user, control }) {
+  const roomRef = doc(db, "rooms", roomId);
+  const roomSnapshot = await getDoc(roomRef);
+  const roomData = roomSnapshot.exists() ? roomSnapshot.data() : {};
+  const revision = (roomData.sessionControl?.revision || 0) + 1;
+  const now = Date.now();
+  const sessionControl = {
+    ...roomData.sessionControl,
+    ...control,
+    revision,
+    updatedAt: now,
+    initiatedBy: user?.uid || control?.initiatedBy || ""
+  };
+
+  await setDoc(roomRef, {
+    ownerUid: roomData.ownerUid || user?.uid || "",
+    ownerName: roomData.ownerName || user?.displayName || user?.email || "Anonymous",
+    updatedAt: now,
+    sessionControl
+  }, { merge: true });
+
+  return sessionControl;
+}
+
 export async function upsertRoomPresence({ roomId, user }) {
   const presenceRef = doc(db, "rooms", roomId, "presence", user.uid);
   const now = Date.now();

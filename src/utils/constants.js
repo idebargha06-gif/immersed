@@ -79,6 +79,15 @@ export const QUOTES = [
   "Progress grows out of consistency. - FocusFlow"
 ];
 
+export function getRandomQuote(exclude = "") {
+  const pool = QUOTES.filter((quote) => quote !== exclude);
+  if (!pool.length) {
+    return QUOTES[0];
+  }
+
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 export const FEEDBACK_POOLS = {
   clean: [
     "Exceptional focus. That session stayed clean from start to finish.",

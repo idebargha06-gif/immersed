@@ -3,7 +3,85 @@ import { createRoomId, getRoomInviteUrl, getRoomIdFromUrl, sanitizeRoomId, write
 
 export function createRoomsController({ store, repository, feedback, leaderboards }) {
   let presenceUnsubscribe = null;
+  let roomUnsubscribe = null;
   let heartbeatId = null;
+  const handlers = {
+    onRemoteSessionStart: null,
+    onRemoteSessionStop: null
+  };
+
+  function setHandlers(nextHandlers) {
+    Object.assign(handlers, nextHandlers);
+  }
+
+  function updateRoomMeta(roomData = {}) {
+    store.setState((state) => ({
+      ...state,
+      room: {
+        ...state.room,
+        ownerUid: roomData.ownerUid || state.room.ownerUid,
+        ownerName: roomData.ownerName || state.room.ownerName,
+        sessionControl: roomData.sessionControl || null
+      }
+    }));
+  }
+
+  async function subscribeRoomState(roomId) {
+    roomUnsubscribe?.();
+    roomUnsubscribe = null;
+
+    if (!roomId) {
+      updateRoomMeta({
+        ownerUid: "",
+        ownerName: "",
+        sessionControl: null
+      });
+      return;
+    }
+
+    const roomData = await repository.ensureRoom({
+      roomId,
+      user: store.getState().auth.user
+    });
+    updateRoomMeta(roomData);
+
+    roomUnsubscribe = repository.subscribeRoom(roomId, async (nextRoom) => {
+      const state = store.getState();
+      const nextRevision = nextRoom.sessionControl?.revision || 0;
+      const currentRevision = state.room.syncRevision || 0;
+
+      store.setState((current) => ({
+        ...current,
+        room: {
+          ...current.room,
+          ownerUid: nextRoom.ownerUid || "",
+          ownerName: nextRoom.ownerName || "",
+          sessionControl: nextRoom.sessionControl || null,
+          syncRevision: Math.max(current.room.syncRevision || 0, nextRevision)
+        }
+      }));
+
+      if (!nextRoom.sessionControl || nextRevision <= currentRevision) {
+        return;
+      }
+
+      const currentUserId = state.auth.user?.uid || "";
+      if (nextRoom.sessionControl.initiatedBy === currentUserId) {
+        return;
+      }
+
+      if (nextRoom.sessionControl.status === "running") {
+        await handlers.onRemoteSessionStart?.(nextRoom.sessionControl);
+        return;
+      }
+
+      if (["stopped", "completed"].includes(nextRoom.sessionControl.status)) {
+        await handlers.onRemoteSessionStop?.({
+          completed: nextRoom.sessionControl.status === "completed"
+        });
+      }
+    });
+  }
 
   function syncRoomDraft(roomId) {
     const nextRoomId = sanitizeRoomId(roomId);
@@ -31,6 +109,7 @@ export function createRoomsController({ store, repository, feedback, leaderboard
       window.clearInterval(heartbeatId);
       heartbeatId = null;
     }
+    await subscribeRoomState(state.room.currentRoomId);
     presenceUnsubscribe?.();
     presenceUnsubscribe = repository.subscribeRoomPresence(state.room.currentRoomId, (participants) => {
       store.setState((nextState) => ({
@@ -61,6 +140,8 @@ export function createRoomsController({ store, repository, feedback, leaderboard
     }
     presenceUnsubscribe?.();
     presenceUnsubscribe = null;
+    roomUnsubscribe?.();
+    roomUnsubscribe = null;
     if (state.auth.user && state.room.currentRoomId) {
       await repository.removeRoomPresence(state.room.currentRoomId, state.auth.user.uid).catch(() => {});
     }
@@ -68,7 +149,11 @@ export function createRoomsController({ store, repository, feedback, leaderboard
       ...nextState,
       room: {
         ...nextState.room,
-        participants: []
+        participants: [],
+        ownerUid: "",
+        ownerName: "",
+        sessionControl: null,
+        syncRevision: 0
       }
     }));
   }
@@ -166,7 +251,11 @@ export function createRoomsController({ store, repository, feedback, leaderboard
           mode: "solo",
           currentRoomId: "",
           draftRoomId: "",
-          participants: []
+          participants: [],
+          ownerUid: "",
+          ownerName: "",
+          sessionControl: null,
+          syncRevision: 0
         },
         ui: {
           ...state.ui,
@@ -202,7 +291,71 @@ export function createRoomsController({ store, repository, feedback, leaderboard
     }
   }
 
+  async function publishTimerStart(timerState) {
+    const state = store.getState();
+    if (!state.auth.user || !state.room.currentRoomId || state.room.ownerUid !== state.auth.user.uid) {
+      return null;
+    }
+
+    const control = await repository.upsertRoomSessionControl({
+      roomId: state.room.currentRoomId,
+      user: state.auth.user,
+      control: {
+        status: "running",
+        startedAt: Date.now(),
+        totalTime: timerState.totalTime,
+        selectedDuration: timerState.selectedDuration,
+        sessionMode: timerState.sessionMode,
+        pomodoroEnabled: timerState.pomodoroEnabled,
+        pomodoroPhase: timerState.pomodoroPhase,
+        pomodoroCycle: timerState.pomodoroCycle,
+        cumulativeFocusSeconds: timerState.cumulativeFocusSeconds || 0,
+        focusGoal: timerState.focusGoal || ""
+      }
+    });
+
+    store.setState((current) => ({
+      ...current,
+      room: {
+        ...current.room,
+        sessionControl: control,
+        syncRevision: control.revision
+      }
+    }));
+
+    return control;
+  }
+
+  async function publishTimerStop({ completed, focusGoal }) {
+    const state = store.getState();
+    if (!state.auth.user || !state.room.currentRoomId || state.room.ownerUid !== state.auth.user.uid) {
+      return null;
+    }
+
+    const control = await repository.upsertRoomSessionControl({
+      roomId: state.room.currentRoomId,
+      user: state.auth.user,
+      control: {
+        status: completed ? "completed" : "stopped",
+        endedAt: Date.now(),
+        focusGoal: focusGoal || state.session.focusGoal || ""
+      }
+    });
+
+    store.setState((current) => ({
+      ...current,
+      room: {
+        ...current.room,
+        sessionControl: control,
+        syncRevision: control.revision
+      }
+    }));
+
+    return control;
+  }
+
   return {
+    setHandlers,
     syncRoomDraft,
     setMode,
     joinRoom,
@@ -210,6 +363,8 @@ export function createRoomsController({ store, repository, feedback, leaderboard
     copyInvite,
     hydrateFromUrl,
     startPresence,
-    stopPresence
+    stopPresence,
+    publishTimerStart,
+    publishTimerStop
   };
 }

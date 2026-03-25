@@ -1,4 +1,5 @@
-import { checkBadges } from "../../utils/scoring.js";
+import { getRandomQuote } from "../../utils/constants.js";
+import { calculateFocusPercentage, checkBadges, calculateSessionScore } from "../../utils/scoring.js";
 
 export function createSessionsController({
   store,
@@ -21,8 +22,30 @@ export function createSessionsController({
     }));
   }
 
-  async function startSession() {
+  function rotateQuote() {
+    store.setState((state) => ({
+      ...state,
+      ui: {
+        ...state.ui,
+        quote: getRandomQuote(state.ui.quote)
+      }
+    }));
+  }
+
+  function setSummaryState(result, saveState = "saving") {
+    store.setState((current) => ({
+      ...current,
+      session: {
+        ...current.session,
+        lastResult: result,
+        saveState
+      }
+    }));
+  }
+
+  async function startSession(options = {}) {
     const state = store.getState();
+    const isRemote = Boolean(options.remoteControl);
 
     if (!state.auth.user) {
       feedback.notify({
@@ -33,11 +56,20 @@ export function createSessionsController({
       return;
     }
 
-    if (!state.timer.timeLeft || state.timer.timeLeft <= 0) {
+    if (!isRemote && (!state.timer.selectedDuration || state.timer.selectedDuration <= 0)) {
       feedback.notify({
         type: "warning",
         title: "Choose a duration",
         message: "Select a duration or custom minute count before starting."
+      });
+      return;
+    }
+
+    if (state.room.mode === "room" && state.room.currentRoomId && state.room.ownerUid && state.room.ownerUid !== state.auth.user.uid && !isRemote) {
+      feedback.notify({
+        type: "warning",
+        title: "Room owner controls this timer",
+        message: `${state.room.ownerName || "The room owner"} starts and stops shared room sessions.`
       });
       return;
     }
@@ -51,30 +83,63 @@ export function createSessionsController({
       return;
     }
 
+    if (options.remoteControl) {
+      store.setState((current) => ({
+        ...current,
+        session: {
+          ...current.session,
+          focusGoal: options.remoteControl.focusGoal || current.session.focusGoal
+        }
+      }));
+      timer.syncRemoteTimer(options.remoteControl);
+    } else {
+      timer.start();
+    }
+
     resetSummaryState();
-    timer.start();
     audio.handleSessionStart();
     feedback.setBanner("Session in progress. Stay with the work.");
     await rooms.startPresence();
+
+    if (state.room.mode === "room" && state.room.currentRoomId && !options.remoteControl) {
+      await rooms.publishTimerStart({
+        totalTime: store.getState().timer.totalTime,
+        selectedDuration: store.getState().timer.selectedDuration,
+        sessionMode: store.getState().timer.sessionMode,
+        pomodoroEnabled: store.getState().timer.pomodoroEnabled,
+        pomodoroPhase: store.getState().timer.pomodoroPhase,
+        pomodoroCycle: store.getState().timer.pomodoroCycle,
+        cumulativeFocusSeconds: store.getState().timer.cumulativeFocusSeconds,
+        focusGoal: store.getState().session.focusGoal
+      });
+    }
   }
 
-  async function finalizeSession(completed = false) {
+  async function finalizeSession(completed = false, options = {}) {
     const state = store.getState();
-    if (!state.timer.running && !state.session.lastResult && !completed) {
+    if (!state.timer.running && !completed) {
       return;
     }
 
+    const diagnostics = timer.getSessionDiagnostics();
     timer.stopRuntime();
+    timer.clearAfterSession();
     audio.handleSessionStop();
     feedback.setBanner("");
-
-    const diagnostics = timer.getSessionDiagnostics();
     const result = {
       ...diagnostics,
       completed,
       goal: store.getState().session.focusGoal || "Untitled session",
-      score: Math.max(0, diagnostics.timeSpent - diagnostics.penaltyTotal)
+      score: calculateSessionScore(diagnostics.timeSpent, diagnostics.penaltyTotal),
+      focusPercentage: calculateFocusPercentage(diagnostics.timeSpent, diagnostics.penaltyTotal)
     };
+
+    if (!result.timeSpent) {
+      setSummaryState(null, "idle");
+      return;
+    }
+
+    rotateQuote();
 
     if (state.ui.notificationsEnabled && "Notification" in window && Notification.permission === "granted") {
       try {
@@ -86,24 +151,18 @@ export function createSessionsController({
       }
     }
 
-    store.setState((current) => ({
-      ...current,
-      session: {
-        ...current.session,
-        lastResult: result,
-        saveState: "saving"
-      }
-    }));
+    setSummaryState(result, "saving");
 
     if (!state.auth.user) {
-      store.setState((current) => ({
-        ...current,
-        session: {
-          ...current.session,
-          saveState: "idle"
-        }
-      }));
+      setSummaryState(result, "idle");
       return;
+    }
+
+    if (state.room.mode === "room" && state.room.currentRoomId && state.room.ownerUid === state.auth.user.uid && !options.skipRoomSync) {
+      await rooms.publishTimerStop({
+        completed,
+        focusGoal: result.goal
+      });
     }
 
     const previousBadges = new Set(store.getState().stats.badges);
@@ -172,6 +231,14 @@ export function createSessionsController({
     await finalizeSession(true);
   }
 
+  async function startRemoteSession(control) {
+    await startSession({ remoteControl: control });
+  }
+
+  async function stopRemoteSession({ completed = false } = {}) {
+    await finalizeSession(completed, { skipRoomSync: true });
+  }
+
   async function shareLastSession() {
     const result = store.getState().session.lastResult;
     if (!result) {
@@ -222,6 +289,8 @@ export function createSessionsController({
     startSession,
     stopSession,
     handleTimerCompletion,
+    startRemoteSession,
+    stopRemoteSession,
     shareLastSession,
     toggleStartStop
   };

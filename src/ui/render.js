@@ -16,12 +16,13 @@ function setAvatar(node, user) {
   }
 
   const name = user?.displayName || user?.email || "User";
-  node.textContent = getInitials(name);
 
   if (user?.photoURL) {
+    node.textContent = "";
     node.style.backgroundImage = `url("${user.photoURL}")`;
     node.dataset.photo = "true";
   } else {
+    node.textContent = getInitials(name);
     node.style.backgroundImage = "";
     node.dataset.photo = "false";
   }
@@ -45,11 +46,13 @@ function renderLanding(state, refs) {
   refs.landingLoggedIn.hidden = !isSignedIn;
   refs.landingSignInButton.hidden = isSignedIn;
   refs.landingUserButton.hidden = !isSignedIn;
-  refs.navAppButton.hidden = !isSignedIn;
+  if (refs.navAppButton) {
+    refs.navAppButton.hidden = true;
+  }
 
   refs.publicMinutesMetric.textContent = formatCompactMinutes(state.publicStats.totalMinutes);
-  refs.publicSessionMetric.textContent = formatCompactMinutes(state.publicStats.totalSessions);
-  refs.publicUserMetric.textContent = formatCompactMinutes(state.publicStats.totalUsers);
+  refs.publicSessionMetric.textContent = String(state.publicStats.totalSessions);
+  refs.publicUserMetric.textContent = String(state.publicStats.totalUsers);
 
   refs.landingLeaderboard.innerHTML = state.leaderboards.landing.length
     ? state.leaderboards.landing.map((entry) => `
@@ -94,6 +97,8 @@ function renderWorkspace(state, refs) {
   setAvatar(refs.profilePanelAvatar, state.auth.user);
   refs.profileButtonName.textContent = state.auth.user.displayName || "Workspace";
   refs.profileButtonStreak.textContent = `${state.stats.streak} day streak`;
+  refs.workspaceStreakValue.textContent = String(state.stats.streak);
+  refs.workspaceStreakBadge.dataset.active = state.stats.streak > 0 ? "true" : "false";
   refs.profilePanelName.textContent = state.auth.user.displayName || "FocusFlow";
   refs.profilePanelEmail.textContent = state.auth.user.email || "";
   refs.profilePanel.hidden = !state.ui.profileOpen;
@@ -111,7 +116,14 @@ function renderTimer(state, refs) {
   refs.timerProgress.style.strokeDasharray = `${CIRCLE_LENGTH}`;
   refs.timerProgress.style.strokeDashoffset = `${CIRCLE_LENGTH * (1 - progress)}`;
   refs.timerProgress.classList.toggle("timer-ring__progress--danger", state.timer.running && progress < 0.1);
-  refs.startButton.disabled = state.timer.running;
+  const roomLocked = state.room.mode === "room"
+    && Boolean(state.room.currentRoomId)
+    && Boolean(state.auth.user?.uid)
+    && Boolean(state.room.ownerUid)
+    && state.room.ownerUid !== state.auth.user.uid;
+  refs.startButton.disabled = state.timer.running || roomLocked;
+  refs.stopButton.disabled = !state.timer.running || roomLocked;
+  refs.startButton.textContent = roomLocked ? "Owner starts session" : "Start session";
 
   refs.sessionModeButtons.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.sessionMode === state.timer.sessionMode);
@@ -135,6 +147,10 @@ function renderRoom(state, refs) {
   refs.roomCodeInput.value = state.room.draftRoomId;
   refs.activeRoomLabel.textContent = state.room.currentRoomId || "None";
   refs.roomPresenceCount.textContent = pluralize(state.room.participants.length, "person");
+  refs.roomOwnerLabel.textContent = state.room.ownerName || "Waiting";
+  refs.roomSyncLabel.textContent = state.room.sessionControl?.status
+    ? `${state.room.sessionControl.status[0].toUpperCase()}${state.room.sessionControl.status.slice(1)}`
+    : "Idle";
   refs.roomPresenceList.innerHTML = state.room.participants.length
     ? state.room.participants.map((participant) => `
       <div class="participant-pill">
@@ -256,7 +272,7 @@ function renderSummary(state, refs) {
   refs.summaryTimeValue.textContent = formatClock(result.timeSpent);
   refs.summaryDistractionValue.textContent = String(result.distractions);
   refs.summaryScoreValue.textContent = String(result.score);
-  refs.summaryFocusValue.textContent = `${calculateFocusPercentage(result.timeSpent, result.penaltyTotal)}%`;
+  refs.summaryFocusValue.textContent = `${result.focusPercentage ?? calculateFocusPercentage(result.timeSpent, result.penaltyTotal)}%`;
   refs.saveStateBadge.textContent = state.session.saveState;
   refs.saveStateBadge.className = `status-badge status-badge--${state.session.saveState}`;
 
@@ -294,6 +310,7 @@ function renderFeedbackState(state, refs) {
 function renderTheme(state, refs) {
   document.body.dataset.theme = state.ui.theme;
   refs.themeButtonLabel.textContent = state.ui.theme === "dark" ? "Dark" : "Light";
+  refs.themeToggleButton.dataset.theme = state.ui.theme;
   refs.profileThemeLabel.textContent = state.ui.theme === "dark" ? "Dark" : "Light";
   refs.notificationLabel.textContent = state.ui.notificationsEnabled ? "On" : "Off";
 }

@@ -6,6 +6,7 @@ class AmbientPlayer {
     this.audio = null;
     this.volume = 0.4;
     this.busy = false;
+    this.playToken = 0;
   }
 
   getTrackUrl(category, index) {
@@ -32,34 +33,35 @@ class AmbientPlayer {
     this.category = category;
     this.index = this.getNextIndex();
     this.busy = false;
-    this.start(this.getTrackUrl(category, this.index));
+    this.playToken += 1;
+    this.start(this.getTrackUrl(category, this.index), this.playToken);
     this.sync();
   }
 
-  start(url) {
+  start(url, token) {
     const audio = new Audio(url);
     audio.preload = "none";
     audio.volume = this.volume;
     this.audio = audio;
 
     audio.onended = () => {
-      if (!this.category) {
+      if (!this.category || token !== this.playToken) {
         return;
       }
       this.index = this.getNextIndex();
-      this.start(this.getTrackUrl(this.category, this.index));
+      this.start(this.getTrackUrl(this.category, this.index), token);
       this.sync();
     };
 
     audio.onerror = () => {
-      if (this.busy) {
+      if (this.busy || token !== this.playToken) {
         return;
       }
       this.busy = true;
       this.index = this.getNextIndex();
       window.setTimeout(() => {
-        if (this.category) {
-          this.start(this.getTrackUrl(this.category, this.index));
+        if (this.category && token === this.playToken) {
+          this.start(this.getTrackUrl(this.category, this.index), token);
           this.sync();
         }
       }, 250);
@@ -70,7 +72,10 @@ class AmbientPlayer {
 
   stop(sync = true) {
     this.category = "";
+    this.playToken += 1;
     if (this.audio) {
+      this.audio.onended = null;
+      this.audio.onerror = null;
       this.audio.pause();
       this.audio.src = "";
     }

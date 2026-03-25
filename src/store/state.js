@@ -1,4 +1,4 @@
-import { DAILY_GOAL_MINUTES, DEFAULT_DURATIONS, QUOTES } from "../utils/constants.js";
+import { DAILY_GOAL_MINUTES, DEFAULT_DURATIONS, getRandomQuote } from "../utils/constants.js";
 import { getRoomIdFromUrl } from "../utils/room.js";
 
 export function createEmptyStats() {
@@ -46,7 +46,7 @@ export function createInitialState() {
         leaderboard: true,
         calendar: false
       },
-      quote: QUOTES[0],
+      quote: getRandomQuote(),
       toasts: [],
       distractionModal: null,
       badgeModal: null,
@@ -81,7 +81,11 @@ export function createInitialState() {
       mode: roomId ? "room" : "solo",
       currentRoomId: roomId,
       draftRoomId: roomId,
-      participants: []
+      participants: [],
+      ownerUid: "",
+      ownerName: "",
+      sessionControl: null,
+      syncRevision: 0
     },
     stats: createEmptyStats(),
     history: [],
