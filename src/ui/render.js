@@ -4,29 +4,13 @@ import {
   DAILY_GOAL_MINUTES,
   DAY_LABELS,
   FEEDBACK_POOLS,
+  OWNER_UID,
   SESSION_MODES
 } from "../utils/constants.js";
-import { getLastTwentyEightDays } from "../utils/date.js";
-import { escapeHtml, formatClock, formatCompactMinutes, formatHoursFromMinutes, getInitials, pluralize } from "../utils/format.js";
+import { createAvatarMarkup, hydrateAvatarImages, mountAvatar } from "../utils/avatar.js";
+import { formatMonthLabel, getMonthGrid, getMonthKey, getTodayIsoDay } from "../utils/date.js";
+import { escapeHtml, formatClock, formatClockWithHours, formatCompactMinutes, formatHoursFromMinutes, formatTimeAgo, getFirstName, pluralize } from "../utils/format.js";
 import { calculateFocusPercentage, getFeedbackBucket, getLevelInfo } from "../utils/scoring.js";
-
-function setAvatar(node, user) {
-  if (!node) {
-    return;
-  }
-
-  const name = user?.displayName || user?.email || "User";
-
-  if (user?.photoURL) {
-    node.textContent = "";
-    node.style.backgroundImage = `url("${user.photoURL}")`;
-    node.dataset.photo = "true";
-  } else {
-    node.textContent = getInitials(name);
-    node.style.backgroundImage = "";
-    node.dataset.photo = "false";
-  }
-}
 
 function renderToasts(toasts, refs) {
   refs.toastStack.innerHTML = toasts.map((toast) => `
@@ -46,9 +30,6 @@ function renderLanding(state, refs) {
   refs.landingLoggedIn.hidden = !isSignedIn;
   refs.landingSignInButton.hidden = isSignedIn;
   refs.landingAccountToolbar.hidden = !isSignedIn;
-  if (refs.navAppButton) {
-    refs.navAppButton.hidden = true;
-  }
 
   refs.publicMinutesMetric.textContent = formatCompactMinutes(state.publicStats.totalMinutes);
   refs.publicSessionMetric.textContent = String(state.publicStats.totalSessions);
@@ -69,47 +50,49 @@ function renderLanding(state, refs) {
     return;
   }
 
-  setAvatar(refs.landingUserAvatar, state.auth.user);
-  setAvatar(refs.profilePanelAvatar, state.auth.user);
-  refs.landingUserName.textContent = state.auth.user.displayName?.split(" ")[0] || "Workspace";
-  refs.landingUserStreak.textContent = `${state.stats.streak} day streak`;
-  refs.landingStreakValue.textContent = String(state.stats.streak);
-  refs.landingStreakBadge.dataset.active = state.stats.streak > 0 ? "true" : "false";
+  const firstName = getFirstName(state.auth.user.displayName || state.auth.user.email || "Workspace");
+  mountAvatar(refs.landingUserAvatar, state.auth.user, { sizeClass: "avatar--small" });
+  mountAvatar(refs.landingHeroAvatar, state.auth.user, { sizeClass: "avatar--small" });
+  mountAvatar(refs.profilePanelAvatar, state.auth.user);
+
+  refs.landingUserName.textContent = firstName;
+  refs.landingHeroTitle.textContent = `${firstName}, your next clean session is one click away.`;
   refs.profilePanelName.textContent = state.auth.user.displayName || "FocusFlow";
   refs.profilePanelEmail.textContent = state.auth.user.email || "";
   refs.profilePanel.hidden = !state.ui.profileOpen;
+
   const level = getLevelInfo(state.stats.totalMinutes);
   const goalPercent = Math.min(100, Math.round((state.stats.todayMinutes / DAILY_GOAL_MINUTES) * 100));
-
   refs.landingGoalProgress.textContent = `${state.stats.todayMinutes} / ${DAILY_GOAL_MINUTES} min`;
   refs.landingGoalFill.style.width = `${goalPercent}%`;
   refs.landingTodayMinutes.textContent = String(state.stats.todayMinutes);
   refs.landingSessionCount.textContent = String(state.stats.totalSessions);
   refs.landingLevelName.textContent = level.name;
   refs.landingTotalScore.textContent = String(state.stats.totalScore);
-  refs.landingMemberMessage.textContent = state.stats.streak >= 1
-    ? `${pluralize(state.stats.streak, "day")} streak in motion. Keep it alive today.`
-    : "Your recent progress is ready. Step back into the workspace when you are.";
+  refs.landingMemberMessage.textContent = "Your recent progress is ready. Step back in and make the next session count.";
 }
 
 function renderWorkspace(state, refs) {
   const showApp = state.route.view === "app" && Boolean(state.auth.user);
   refs.mainApp.hidden = !showApp;
   refs.landingPage.hidden = showApp;
+  refs.ownerDashButton.hidden = !(state.auth.user?.uid === OWNER_UID);
 
   if (!showApp) {
     return;
   }
 
-  setAvatar(refs.profileAvatar, state.auth.user);
-  setAvatar(refs.profilePanelAvatar, state.auth.user);
-  refs.profileButtonName.textContent = state.auth.user.displayName || "Workspace";
-  refs.profileButtonStreak.textContent = `${state.stats.streak} day streak`;
-  refs.workspaceStreakValue.textContent = String(state.stats.streak);
-  refs.workspaceStreakBadge.dataset.active = state.stats.streak > 0 ? "true" : "false";
+  mountAvatar(refs.profileAvatar, state.auth.user, { sizeClass: "avatar--small" });
+  mountAvatar(refs.profilePanelAvatar, state.auth.user);
+  refs.profileButtonName.textContent = getFirstName(state.auth.user.displayName || state.auth.user.email || "Workspace");
   refs.profilePanelName.textContent = state.auth.user.displayName || "FocusFlow";
   refs.profilePanelEmail.textContent = state.auth.user.email || "";
   refs.profilePanel.hidden = !state.ui.profileOpen;
+  refs.workspaceStreakValue.textContent = String(state.stats.streak);
+  refs.workspaceStreakBadge.hidden = state.stats.streak <= 0;
+  refs.workspaceStreakBadge.dataset.active = state.stats.streak > 0 ? "true" : "false";
+  refs.roomModeCountBadge.hidden = state.room.mode !== "room" || state.room.activeCount <= 0;
+  refs.roomModeCountBadge.textContent = String(state.room.activeCount);
 }
 
 function renderTimer(state, refs) {
@@ -124,6 +107,7 @@ function renderTimer(state, refs) {
   refs.timerProgress.style.strokeDasharray = `${CIRCLE_LENGTH}`;
   refs.timerProgress.style.strokeDashoffset = `${CIRCLE_LENGTH * (1 - progress)}`;
   refs.timerProgress.classList.toggle("timer-ring__progress--danger", state.timer.running && progress < 0.1);
+  refs.timerRing.classList.toggle("session-starting", state.ui.focusPulse);
   const roomLocked = state.room.mode === "room"
     && Boolean(state.room.currentRoomId)
     && Boolean(state.auth.user?.uid)
@@ -136,15 +120,12 @@ function renderTimer(state, refs) {
   refs.sessionModeButtons.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.sessionMode === state.timer.sessionMode);
   });
-
   refs.modeButtons.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.mode === state.room.mode);
   });
-
   refs.durationButtons.forEach((button) => {
     button.classList.toggle("is-active", Number(button.dataset.duration) === state.timer.selectedDuration);
   });
-
   refs.pomodoroButton.classList.toggle("is-active", state.timer.pomodoroEnabled);
   refs.scorePenaltyLabel.textContent = `Penalty: -${SESSION_MODES[state.timer.sessionMode].penalty} per distraction, minimum score 0.`;
   refs.sessionModeDescription.textContent = SESSION_MODES[state.timer.sessionMode].description;
@@ -153,17 +134,19 @@ function renderTimer(state, refs) {
 function renderRoom(state, refs) {
   refs.roomPanel.hidden = state.room.mode !== "room";
   refs.roomCodeInput.value = state.room.draftRoomId;
+  refs.roomJoinInput.value = state.room.joinCode;
   refs.activeRoomLabel.textContent = state.room.currentRoomId || "None";
-  refs.roomPresenceCount.textContent = pluralize(state.room.participants.length, "person");
+  refs.roomPresenceCount.textContent = pluralize(state.room.activeCount, "person");
   refs.roomOwnerLabel.textContent = state.room.ownerName || "Waiting";
   refs.roomSyncLabel.textContent = state.room.sessionControl?.status
     ? `${state.room.sessionControl.status[0].toUpperCase()}${state.room.sessionControl.status.slice(1)}`
     : "Idle";
+  const currentUid = state.auth.user?.uid;
   refs.roomPresenceList.innerHTML = state.room.participants.length
     ? state.room.participants.map((participant) => `
-      <div class="participant-pill">
-        <span class="avatar avatar--tiny"${participant.avatar ? ` style="background-image:url('${participant.avatar}')"` : ""}>${participant.avatar ? "" : getInitials(participant.name)}</span>
-        <span>${escapeHtml(participant.name)}</span>
+      <div class="participant-pill${participant.uid === currentUid ? " is-self" : ""}">
+        ${createAvatarMarkup(participant, { sizeClass: "avatar--tiny" })}
+        <span>${escapeHtml(participant.name)}${participant.uid === currentUid ? " (you)" : ""}</span>
       </div>
     `).join("")
     : `<p class="empty-copy">Nobody else is in this room yet.</p>`;
@@ -177,14 +160,16 @@ function renderAudio(state, refs) {
   });
 }
 
-function renderStats(state, refs) {
+function renderCalendar(state, refs) {
   const level = getLevelInfo(state.stats.totalMinutes);
-  const xpRange = Number.isFinite(level.next) ? level.next - level.min : 1;
-  const xpValue = Number.isFinite(level.next)
-    ? Math.min(100, Math.round(((state.stats.totalMinutes - level.min) / xpRange) * 100))
-    : 100;
   const goalPercent = Math.min(100, Math.round((state.stats.todayMinutes / DAILY_GOAL_MINUTES) * 100));
   const activityDays = new Set(state.stats.activityDays);
+  const todayIso = getTodayIsoDay();
+  const viewedMonth = state.ui.calendarViewMonth;
+  const todayMonth = getMonthKey();
+  const monthGrid = getMonthGrid(viewedMonth);
+  const firstSessionDay = state.stats.activityDays[0] || null;
+  const monthActiveDays = monthGrid.filter((cell) => cell.type === "day" && activityDays.has(cell.iso)).length;
 
   refs.dailyGoalLabel.textContent = `${state.stats.todayMinutes} / ${DAILY_GOAL_MINUTES} min`;
   refs.dailyGoalFill.style.width = `${goalPercent}%`;
@@ -194,21 +179,41 @@ function renderStats(state, refs) {
   refs.statsLevelValue.textContent = level.name;
   refs.xpCurrentLabel.textContent = `${state.stats.totalMinutes} min`;
   refs.xpNextLabel.textContent = Number.isFinite(level.next) ? `Next: ${level.next} min` : "Top tier reached";
+  const xpRange = Number.isFinite(level.next) ? level.next - level.min : 1;
+  const xpValue = Number.isFinite(level.next)
+    ? Math.min(100, Math.round(((state.stats.totalMinutes - level.min) / xpRange) * 100))
+    : 100;
   refs.xpFill.style.width = `${xpValue}%`;
   refs.badgeCountLabel.textContent = `${state.stats.badges.length} / 13`;
-
   refs.badgeList.innerHTML = state.stats.badges.length
-    ? state.stats.badges.map((badge) => `<span class="badge">${escapeHtml(badge.replaceAll("_", " "))}</span>`).join("")
+    ? state.stats.badges.map((badge) => `<span class="badge${state.ui.highlightedBadgeId === badge ? " just-unlocked" : ""}">${escapeHtml(badge.replaceAll("_", " "))}</span>`).join("")
     : `<span class="badge badge--muted">No badges yet</span>`;
 
-  const calendarDays = getLastTwentyEightDays();
-  refs.calendarGrid.innerHTML = calendarDays.map((day) => `
-    <div class="calendar-day${activityDays.has(day.iso) ? " is-done" : ""}">
-      <span>${day.label}</span>
-      <strong>${day.dayNumber}</strong>
-    </div>
-  `).join("");
+  refs.calendarToggleLabel.textContent = formatMonthLabel(viewedMonth);
   refs.calendarMetaLabel.textContent = `Best ${state.stats.longestStreak} days`;
+  refs.calendarMonthLabel.textContent = formatMonthLabel(viewedMonth);
+  refs.calendarNextButton.disabled = viewedMonth >= todayMonth;
+  refs.calendarLongestLabel.textContent = `Longest: ${state.stats.longestStreak}d`;
+  refs.calendarMonthDaysLabel.textContent = `This month: ${monthActiveDays} days`;
+
+  refs.calendarGrid.innerHTML = monthGrid.map((cell) => {
+    if (cell.type === "empty") {
+      return `<div class="calendar-day calendar-day--empty" aria-hidden="true"></div>`;
+    }
+
+    const isToday = cell.iso === todayIso;
+    const isDone = activityDays.has(cell.iso);
+    const isFuture = cell.iso > todayIso;
+    const isBeforeStart = firstSessionDay ? cell.iso < firstSessionDay : true;
+    const isMissed = !isDone && !isFuture && !isBeforeStart;
+
+    return `
+      <div class="calendar-day${isDone ? " is-done" : ""}${isMissed ? " is-missed" : ""}${isToday ? " is-today" : ""}${(isFuture || isBeforeStart) ? " is-muted" : ""}">
+        <span>${cell.dayNumber}</span>
+        ${isDone ? '<strong>&check;</strong>' : '<strong></strong>'}
+      </div>
+    `;
+  }).join("");
 
   const weekMax = Math.max(...state.stats.weekData, 1);
   refs.weekChart.innerHTML = state.stats.weekData.map((value, index) => `
@@ -228,11 +233,18 @@ function renderStats(state, refs) {
 }
 
 function renderHistory(state, refs) {
+  const expandedIds = new Set(state.ui.expandedHistoryIds);
   refs.historyList.innerHTML = state.history.length
     ? state.history.map((session) => `
-      <li class="history-item">
-        <strong>${escapeHtml(session.goal)}</strong>
+      <li class="history-item${expandedIds.has(session.id) ? " expanded" : ""}" data-action="toggle-history-item" data-history-id="${session.id}" tabindex="0">
+        <strong class="history-item__goal">${escapeHtml(session.goal)}</strong>
         <span>${escapeHtml(session.dateLabel)} - ${formatClock(session.timeSpent)} - ${session.distractions} distractions - ${session.score} pts</span>
+        <div class="history-item__details">
+          <span>Mode: ${escapeHtml(session.sessionMode || "normal")}</span>
+          <span>Distractions: ${session.distractions}</span>
+          <span>Score: ${session.score} pts</span>
+          <span>Penalty: -${session.penaltyTotal || 0}</span>
+        </div>
       </li>
     `).join("")
     : `<li class="history-item history-item--empty">No sessions yet. Start one to build history.</li>`;
@@ -305,7 +317,8 @@ function renderPanels(state, refs) {
 
 function renderFeedbackState(state, refs) {
   refs.workspaceBanner.hidden = !state.ui.banner;
-  refs.workspaceBanner.textContent = state.ui.banner;
+  refs.workspaceBanner.textContent = state.ui.banner?.message || "";
+  refs.workspaceBanner.className = `workspace-banner${state.ui.banner ? ` workspace-banner--${state.ui.banner.type}` : ""}`;
 
   refs.distractionModal.hidden = !state.ui.distractionModal;
   refs.distractionModalText.textContent = state.ui.distractionModal?.message || "";
@@ -313,6 +326,57 @@ function renderFeedbackState(state, refs) {
   refs.badgeModal.hidden = !state.ui.badgeModal;
   refs.badgeModalTitle.textContent = state.ui.badgeModal?.title || "Badge unlocked";
   refs.badgeModalText.textContent = state.ui.badgeModal?.message || "";
+}
+
+function renderOwnerDashboard(state, refs) {
+  refs.ownerDashboard.hidden = !state.ui.ownerDashboardOpen;
+  refs.ownerRoomSelect.innerHTML = state.owner.rooms.length
+    ? state.owner.rooms.map((room) => `<option value="${escapeHtml(room.id)}"${room.id === state.owner.selectedRoomId ? " selected" : ""}>${escapeHtml(room.name)}</option>`).join("")
+    : '<option value="">No active rooms</option>';
+  refs.odTotalParticipants.textContent = String(state.owner.summary.total);
+  refs.odFocusingCount.textContent = String(state.owner.summary.focusing);
+  refs.odDistractedCount.textContent = String(state.owner.summary.distracted);
+  refs.odLeftCount.textContent = String(state.owner.summary.left);
+  refs.odParticipants.innerHTML = state.owner.participants.length
+    ? state.owner.participants.map((participant) => {
+      const status = participant.leftAt
+        ? { label: "Left", className: "is-left" }
+        : participant.distractedAt
+          ? { label: "Distracted", className: "is-distracted" }
+          : participant.focusing
+            ? { label: "Focusing", className: "is-focusing" }
+            : { label: "Waiting", className: "is-waiting" };
+      const elapsedSeconds = participant.sessionStarted && participant.focusing
+        ? Math.max(0, Math.floor((state.ui.ownerNow - participant.sessionStarted) / 1000))
+        : 0;
+
+      return `
+        <article class="owner-card ${status.className}">
+          <div class="owner-card__header">
+            ${createAvatarMarkup(participant)}
+            <div>
+              <strong>${escapeHtml(participant.name)}</strong>
+              <span class="owner-status-pill ${status.className}">${status.label}</span>
+            </div>
+          </div>
+          <div class="owner-card__meta">
+            <span class="owner-card__badge${participant.distractionCount > 0 ? ' owner-card__badge--alert' : ''}">${participant.distractionCount} distractions</span>
+            <strong>${elapsedSeconds ? formatClockWithHours(elapsedSeconds) : "00:00"}</strong>
+          </div>
+          <p class="owner-card__subtext">${participant.leftAt ? `Left ${formatTimeAgo(participant.leftAt, state.ui.ownerNow)}` : participant.awayDuration ? `Away ${participant.awayDuration}s` : "Listening for movement"}</p>
+        </article>
+      `;
+    }).join("")
+    : '<p class="empty-copy">Select an active room to monitor presence.</p>';
+
+  refs.odEventLog.innerHTML = state.owner.eventLog.length
+    ? state.owner.eventLog.map((entry) => `
+      <div class="owner-log-row owner-log-row--${entry.type}">
+        <strong>${new Date(entry.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</strong>
+        <span>${escapeHtml(entry.message)}</span>
+      </div>
+    `).join("")
+    : '<div class="owner-log-row"><span>Events will appear here.</span></div>';
 }
 
 function renderTheme(state, refs) {
@@ -330,8 +394,6 @@ function renderLoader(state, refs) {
 }
 
 export function createRenderer(refs) {
-  let previousState = null;
-
   return function render(state) {
     renderLoader(state, refs);
     renderTheme(state, refs);
@@ -341,17 +403,18 @@ export function createRenderer(refs) {
     renderTimer(state, refs);
     renderRoom(state, refs);
     renderAudio(state, refs);
-    renderStats(state, refs);
+    renderCalendar(state, refs);
     renderHistory(state, refs);
     renderLeaderboards(state, refs);
     renderSummary(state, refs);
     renderPanels(state, refs);
     renderFeedbackState(state, refs);
+    renderOwnerDashboard(state, refs);
     refs.quoteBar.textContent = state.ui.quote;
     document.title = state.route.view === "app" && state.timer.running
       ? `${refs.timerValue.textContent} | ${APP_TITLE}`
       : "FocusFlow | Deep work that feels intentional";
-    previousState = state;
-    return previousState;
+    hydrateAvatarImages(refs.root);
+    return state;
   };
 }

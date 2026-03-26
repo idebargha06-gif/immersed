@@ -1,4 +1,5 @@
 import { DAILY_GOAL_MINUTES, DEFAULT_DURATIONS, getRandomQuote } from "../utils/constants.js";
+import { getMonthKey } from "../utils/date.js";
 import { getRoomIdFromUrl } from "../utils/room.js";
 
 export function createEmptyStats() {
@@ -50,8 +51,14 @@ export function createInitialState() {
       toasts: [],
       distractionModal: null,
       badgeModal: null,
-      banner: "",
-      reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      banner: null,
+      reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      calendarViewMonth: getMonthKey(),
+      highlightedBadgeId: "",
+      focusPulse: false,
+      expandedHistoryIds: [],
+      ownerDashboardOpen: false,
+      ownerNow: Date.now()
     },
     timer: {
       selectedDuration,
@@ -69,7 +76,8 @@ export function createInitialState() {
       distractionPenaltyTotal: 0,
       distractionLog: [],
       blurStartedAt: null,
-      lastActivityAt: Date.now()
+      lastActivityAt: Date.now(),
+      distractionHandled: false
     },
     session: {
       focusGoal: "",
@@ -81,7 +89,9 @@ export function createInitialState() {
       mode: roomId ? "room" : "solo",
       currentRoomId: roomId,
       draftRoomId: roomId,
+      joinCode: "",
       participants: [],
+      activeCount: 0,
       ownerUid: "",
       ownerName: "",
       sessionControl: null,
@@ -93,6 +103,18 @@ export function createInitialState() {
       landing: [],
       global: [],
       room: []
+    },
+    owner: {
+      rooms: [],
+      selectedRoomId: "",
+      participants: [],
+      eventLog: [],
+      summary: {
+        total: 0,
+        focusing: 0,
+        distracted: 0,
+        left: 0
+      }
     },
     publicStats: {
       totalMinutes: 0,

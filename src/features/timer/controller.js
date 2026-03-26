@@ -8,7 +8,9 @@ export function createTimerController({ store, feedback }) {
   const handlers = {
     onToggleSession: null,
     onEscape: null,
-    onSessionFinished: null
+    onSessionFinished: null,
+    onDistraction: null,
+    onDistractionCleared: null
   };
 
   function setHandlers(nextHandlers) {
@@ -174,7 +176,8 @@ export function createTimerController({ store, feedback }) {
         distractionLog: [],
         blurStartedAt: null,
         lastActivityAt: Date.now(),
-        cumulativeFocusSeconds: current.timer.pomodoroEnabled ? 0 : current.timer.cumulativeFocusSeconds
+        cumulativeFocusSeconds: current.timer.pomodoroEnabled ? 0 : current.timer.cumulativeFocusSeconds,
+        distractionHandled: false
       }
     }));
     beginTicker();
@@ -187,7 +190,8 @@ export function createTimerController({ store, feedback }) {
       timer: {
         ...state.timer,
         running: false,
-        blurStartedAt: null
+        blurStartedAt: null,
+        distractionHandled: false
       }
     }));
   }
@@ -219,7 +223,8 @@ export function createTimerController({ store, feedback }) {
         distractionPenaltyTotal: 0,
         distractionLog: [],
         blurStartedAt: null,
-        lastActivityAt: Date.now()
+        lastActivityAt: Date.now(),
+        distractionHandled: false
       }
     }));
 
@@ -246,7 +251,8 @@ export function createTimerController({ store, feedback }) {
         pomodoroEnabled: false,
         pomodoroPhase: "work",
         pomodoroCycle: 0,
-        cumulativeFocusSeconds: 0
+        cumulativeFocusSeconds: 0,
+        distractionHandled: false
       }
     }));
   }
@@ -269,7 +275,8 @@ export function createTimerController({ store, feedback }) {
         pomodoroEnabled: false,
         pomodoroPhase: "work",
         pomodoroCycle: 0,
-        cumulativeFocusSeconds: 0
+        cumulativeFocusSeconds: 0,
+        distractionHandled: false
       }
     }));
   }
@@ -282,12 +289,13 @@ export function createTimerController({ store, feedback }) {
 
     const recentCount = state.timer.distractionLog.filter((entry) => entry.recordedAt > Date.now() - 60000).length + 1;
     const penalty = calculateDistractionPenalty(state.timer.sessionMode, awaySeconds, recentCount);
+    const nextCount = state.timer.distractionCount + 1;
 
     store.setState((current) => ({
       ...current,
       timer: {
         ...current.timer,
-        distractionCount: current.timer.distractionCount + 1,
+        distractionCount: nextCount,
         distractionPenaltyTotal: current.timer.distractionPenaltyTotal + penalty,
         distractionLog: [
           ...current.timer.distractionLog,
@@ -300,6 +308,25 @@ export function createTimerController({ store, feedback }) {
         ]
       }
     }));
+
+    handlers.onDistraction?.({ awaySeconds, distractionCount: nextCount });
+  }
+
+  function clearDistractionTracking(awaySeconds = 0) {
+    store.setState((current) => ({
+      ...current,
+      timer: {
+        ...current.timer,
+        blurStartedAt: null,
+        distractionHandled: false
+      }
+    }));
+
+    if (awaySeconds >= 10) {
+      feedback.showDistractionModal(`You were away for ${awaySeconds} seconds.`);
+    }
+
+    handlers.onDistractionCleared?.({ awaySeconds });
   }
 
   function bindAttentionTracking() {
@@ -319,7 +346,7 @@ export function createTimerController({ store, feedback }) {
 
     window.addEventListener("blur", () => {
       const state = store.getState();
-      if (!state.timer.running || state.timer.blurStartedAt) {
+      if (!state.timer.running || state.timer.distractionHandled) {
         return;
       }
 
@@ -328,7 +355,8 @@ export function createTimerController({ store, feedback }) {
         ...current,
         timer: {
           ...current.timer,
-          blurStartedAt: Date.now()
+          blurStartedAt: Date.now(),
+          distractionHandled: true
         }
       }));
     });
@@ -340,17 +368,7 @@ export function createTimerController({ store, feedback }) {
       }
 
       const awaySeconds = Math.round((Date.now() - state.timer.blurStartedAt) / 1000);
-      store.setState((current) => ({
-        ...current,
-        timer: {
-          ...current.timer,
-          blurStartedAt: null
-        }
-      }));
-
-      if (awaySeconds >= 10) {
-        feedback.showDistractionModal(`You were away for ${awaySeconds} seconds.`);
-      }
+      clearDistractionTracking(awaySeconds);
     });
 
     document.addEventListener("visibilitychange", () => {
@@ -360,13 +378,14 @@ export function createTimerController({ store, feedback }) {
       }
 
       if (document.hidden) {
-        if (!state.timer.blurStartedAt) {
+        if (!state.timer.distractionHandled) {
           recordDistraction("Tab hidden", 0);
           store.setState((current) => ({
             ...current,
             timer: {
               ...current.timer,
-              blurStartedAt: Date.now()
+              blurStartedAt: Date.now(),
+              distractionHandled: true
             }
           }));
         }
@@ -375,17 +394,7 @@ export function createTimerController({ store, feedback }) {
 
       if (state.timer.blurStartedAt) {
         const awaySeconds = Math.round((Date.now() - state.timer.blurStartedAt) / 1000);
-        store.setState((current) => ({
-          ...current,
-          timer: {
-            ...current.timer,
-            blurStartedAt: null
-          }
-        }));
-
-        if (awaySeconds >= 10) {
-          feedback.showDistractionModal(`You were away for ${awaySeconds} seconds.`);
-        }
+        clearDistractionTracking(awaySeconds);
       }
     });
 
@@ -440,9 +449,7 @@ export function createTimerController({ store, feedback }) {
       timeSpent: getFocusedSeconds(),
       distractions: state.timer.distractionCount,
       penaltyTotal: state.timer.distractionPenaltyTotal,
-      distractionLog: state.timer.distractionLog.map((entry) => ({
-        ...entry
-      })),
+      distractionLog: state.timer.distractionLog.map((entry) => ({ ...entry })),
       sessionMode: state.timer.sessionMode
     };
   }

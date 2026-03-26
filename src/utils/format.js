@@ -34,6 +34,11 @@ export function getInitials(name = "") {
   return tokens.slice(0, 2).map((token) => token[0].toUpperCase()).join("");
 }
 
+export function getFirstName(name = "") {
+  const [first = ""] = name.trim().split(/\s+/).filter(Boolean);
+  return first || "Workspace";
+}
+
 export function escapeHtml(value = "") {
   return value
     .replaceAll("&", "&amp;")
@@ -41,4 +46,36 @@ export function escapeHtml(value = "") {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+export function formatTimeAgo(timestamp, now = Date.now()) {
+  if (!timestamp) {
+    return "just now";
+  }
+
+  const deltaSeconds = Math.max(0, Math.floor((now - timestamp) / 1000));
+  if (deltaSeconds < 60) {
+    return `${deltaSeconds}s ago`;
+  }
+
+  const deltaMinutes = Math.floor(deltaSeconds / 60);
+  if (deltaMinutes < 60) {
+    return `${deltaMinutes}m ago`;
+  }
+
+  const deltaHours = Math.floor(deltaMinutes / 60);
+  return `${deltaHours}h ago`;
+}
+
+export function formatClockWithHours(totalSeconds) {
+  const safe = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(safe / 3600);
+  const minutes = Math.floor((safe % 3600) / 60);
+  const seconds = safe % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }

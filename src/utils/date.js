@@ -78,3 +78,63 @@ export function getLastTwentyEightDays() {
 
   return days;
 }
+
+export function getMonthKey(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export function parseMonthKey(monthKey) {
+  if (!/^\d{4}-\d{2}$/.test(monthKey)) {
+    const today = new Date();
+    return {
+      year: today.getFullYear(),
+      month: today.getMonth()
+    };
+  }
+
+  const [year, month] = monthKey.split("-").map(Number);
+  return {
+    year,
+    month: month - 1
+  };
+}
+
+export function shiftMonthKey(monthKey, delta) {
+  const { year, month } = parseMonthKey(monthKey);
+  const date = new Date(year, month + delta, 1);
+  return getMonthKey(date);
+}
+
+export function formatMonthLabel(monthKey, locale) {
+  const { year, month } = parseMonthKey(monthKey);
+  return new Date(year, month, 1).toLocaleDateString(locale, {
+    month: "long",
+    year: "numeric"
+  });
+}
+
+export function getMonthGrid(monthKey, locale) {
+  const { year, month } = parseMonthKey(monthKey);
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const leadingEmpty = firstDay.getDay();
+  const cells = [];
+
+  for (let index = 0; index < leadingEmpty; index += 1) {
+    cells.push({ type: "empty", id: `empty-${monthKey}-${index}` });
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const value = new Date(year, month, day);
+    cells.push({
+      type: "day",
+      date: value,
+      iso: toIsoDayKey(value),
+      dayNumber: day,
+      weekdayLabel: value.toLocaleDateString(locale, { weekday: "short" })
+    });
+  }
+
+  return cells;
+}

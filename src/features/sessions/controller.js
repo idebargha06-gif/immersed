@@ -18,6 +18,10 @@ export function createSessionsController({
         ...state.session,
         lastResult: null,
         saveState: "idle"
+      },
+      ui: {
+        ...state.ui,
+        highlightedBadgeId: ""
       }
     }));
   }
@@ -30,6 +34,26 @@ export function createSessionsController({
         quote: getRandomQuote(state.ui.quote)
       }
     }));
+  }
+
+  function pulseTimerRing() {
+    store.setState((state) => ({
+      ...state,
+      ui: {
+        ...state.ui,
+        focusPulse: true
+      }
+    }));
+
+    window.setTimeout(() => {
+      store.setState((state) => ({
+        ...state,
+        ui: {
+          ...state.ui,
+          focusPulse: false
+        }
+      }));
+    }, 700);
   }
 
   function setSummaryState(result, saveState = "saving") {
@@ -97,9 +121,11 @@ export function createSessionsController({
     }
 
     resetSummaryState();
+    pulseTimerRing();
     audio.handleSessionStart();
-    feedback.setBanner("Session in progress. Stay with the work.");
+    feedback.setBanner("Session in progress. Stay with the work.", "neutral");
     await rooms.startPresence();
+    rooms.updatePresence({ focusing: true, sessionStarted: Date.now(), distractedAt: 0, awayDuration: 0, distractionCount: 0, leftAt: 0, active: true }).catch(() => {});
 
     if (state.room.mode === "room" && state.room.currentRoomId && !options.remoteControl) {
       await rooms.publishTimerStart({
@@ -126,6 +152,7 @@ export function createSessionsController({
     timer.clearAfterSession();
     audio.handleSessionStop();
     feedback.setBanner("");
+    rooms.updatePresence({ focusing: false, distractedAt: 0, awayDuration: 0 }).catch(() => {});
     const result = {
       ...diagnostics,
       completed,
@@ -159,10 +186,7 @@ export function createSessionsController({
     }
 
     if (state.room.mode === "room" && state.room.currentRoomId && state.room.ownerUid === state.auth.user.uid && !options.skipRoomSync) {
-      await rooms.publishTimerStop({
-        completed,
-        focusGoal: result.goal
-      });
+      await rooms.publishTimerStop({ completed, focusGoal: result.goal });
     }
 
     const previousBadges = new Set(store.getState().stats.badges);
@@ -191,6 +215,22 @@ export function createSessionsController({
       const nextBadges = checkBadges(workspace.stats);
       const unlocked = nextBadges.find((badge) => !previousBadges.has(badge));
       if (unlocked) {
+        store.setState((current) => ({
+          ...current,
+          ui: {
+            ...current.ui,
+            highlightedBadgeId: unlocked
+          }
+        }));
+        window.setTimeout(() => {
+          store.setState((current) => ({
+            ...current,
+            ui: {
+              ...current.ui,
+              highlightedBadgeId: current.ui.highlightedBadgeId === unlocked ? "" : current.ui.highlightedBadgeId
+            }
+          }));
+        }, 2200);
         feedback.showBadgeModal("New badge", `You unlocked ${unlocked.replaceAll("_", " ")}.`);
       }
 
@@ -255,10 +295,7 @@ export function createSessionsController({
 
     try {
       if (navigator.share) {
-        await navigator.share({
-          title: "FocusFlow session",
-          text
-        });
+        await navigator.share({ title: "FocusFlow session", text });
       } else {
         await navigator.clipboard.writeText(text);
         feedback.notify({
@@ -268,11 +305,7 @@ export function createSessionsController({
         });
       }
     } catch (error) {
-      feedback.notify({
-        type: "warning",
-        title: "Share cancelled",
-        message: "No summary was shared."
-      });
+      feedback.notify({ type: "warning", title: "Share cancelled", message: "No summary was shared." });
     }
   }
 

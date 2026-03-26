@@ -5,9 +5,12 @@ export const CIRCLE_RADIUS = 88;
 export const CIRCLE_LENGTH = 2 * Math.PI * CIRCLE_RADIUS;
 export const ROOM_PRESENCE_TTL_MS = 2 * 60 * 1000;
 export const ROOM_HEARTBEAT_MS = 30 * 1000;
+export const ROOM_PRESENCE_DELETE_DELAY_MS = 5 * 60 * 1000;
 export const IDLE_THRESHOLD_MS = 5 * 60 * 1000;
 export const TIMER_TICK_MS = 250;
 export const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+export const OWNER_UID = "5su9hgizJVQ4yMHm9zHkdLvYw293";
+export const OWNER_ROOM_LIMIT = 20;
 
 export const DEFAULT_DURATIONS = [
   { label: "5m", seconds: 5 * 60 },

@@ -3,6 +3,7 @@ import { createAuthController } from "../features/auth/controller.js";
 import { createAudioController } from "../features/audio/controller.js";
 import { createFeedbackController } from "../features/feedback/controller.js";
 import { createLeaderboardsController } from "../features/leaderboards/controller.js";
+import { createOwnerController } from "../features/owner/controller.js";
 import { createProfileController } from "../features/profile/controller.js";
 import { createRoomsController } from "../features/rooms/controller.js";
 import { createSessionsController } from "../features/sessions/controller.js";
@@ -12,6 +13,7 @@ import { createStore } from "../store/createStore.js";
 import { createInitialState } from "../store/state.js";
 import { mountApp } from "../ui/dom.js";
 import { createRenderer } from "../ui/render.js";
+import { getMonthKey, shiftMonthKey } from "../utils/date.js";
 
 export function bootstrapApp() {
   const root = document.querySelector("#app");
@@ -25,6 +27,7 @@ export function bootstrapApp() {
   const stats = createStatsController({ store, repository });
   const audio = createAudioController({ store, feedback });
   const rooms = createRoomsController({ store, repository, feedback, leaderboards });
+  const owner = createOwnerController({ store, repository });
   const timer = createTimerController({ store, feedback });
   const sessions = createSessionsController({
     store,
@@ -52,14 +55,61 @@ export function bootstrapApp() {
       feedback.hideDistractionModal();
       feedback.hideBadgeModal();
       profile.closeProfile();
+      owner.closeDashboard();
     },
-    onSessionFinished: sessions.handleTimerCompletion
+    onSessionFinished: sessions.handleTimerCompletion,
+    onDistraction: ({ awaySeconds, distractionCount }) => {
+      rooms.updatePresence({
+        distractedAt: Date.now(),
+        distractionCount,
+        awayDuration: awaySeconds
+      }).catch(() => {});
+    },
+    onDistractionCleared: () => {
+      rooms.updatePresence({ distractedAt: 0, awayDuration: 0 }).catch(() => {});
+    }
   });
 
   rooms.setHandlers({
     onRemoteSessionStart: sessions.startRemoteSession,
     onRemoteSessionStop: sessions.stopRemoteSession
   });
+
+  function toggleHistoryExpansion(historyId) {
+    store.setState((state) => {
+      const current = new Set(state.ui.expandedHistoryIds);
+      if (current.has(historyId)) {
+        current.delete(historyId);
+      } else {
+        current.add(historyId);
+      }
+
+      return {
+        ...state,
+        ui: {
+          ...state.ui,
+          expandedHistoryIds: [...current]
+        }
+      };
+    });
+  }
+
+  function shiftCalendar(delta) {
+    const currentMonth = store.getState().ui.calendarViewMonth;
+    const nextMonth = shiftMonthKey(currentMonth, delta);
+    const currentLimit = getMonthKey();
+    if (nextMonth > currentLimit) {
+      return;
+    }
+
+    store.setState((state) => ({
+      ...state,
+      ui: {
+        ...state.ui,
+        calendarViewMonth: nextMonth
+      }
+    }));
+  }
 
   function bindGlobalEvents() {
     root.addEventListener("click", async (event) => {
@@ -124,11 +174,7 @@ export function bootstrapApp() {
           if (timer.applyCustomMinutes(refs.customMinutesInput.value)) {
             refs.customDurationPanel.hidden = true;
           } else {
-            feedback.notify({
-              type: "warning",
-              title: "Minutes required",
-              message: "Enter a whole number greater than zero."
-            });
+            feedback.notify({ type: "warning", title: "Minutes required", message: "Enter a whole number greater than zero." });
           }
           break;
         case "toggle-pomodoro":
@@ -137,11 +183,17 @@ export function bootstrapApp() {
         case "join-room":
           await rooms.joinRoom(refs.roomCodeInput.value);
           break;
+        case "join-room-code":
+          await rooms.joinRoomByCode(refs.roomJoinInput.value);
+          break;
         case "create-room":
           await rooms.createRoom();
           break;
         case "copy-invite":
           await rooms.copyInvite();
+          break;
+        case "copy-room-code":
+          await rooms.copyRoomCode();
           break;
         case "start-session":
           await sessions.startSession();
@@ -175,6 +227,21 @@ export function bootstrapApp() {
           }));
           break;
         }
+        case "calendar-prev":
+          shiftCalendar(-1);
+          break;
+        case "calendar-next":
+          shiftCalendar(1);
+          break;
+        case "toggle-history-item":
+          toggleHistoryExpansion(actionTarget.dataset.historyId);
+          break;
+        case "open-owner-dashboard":
+          owner.openDashboard();
+          break;
+        case "close-owner-dashboard":
+          owner.closeDashboard();
+          break;
         case "dismiss-toast":
           feedback.dismissToast(actionTarget.dataset.toastId);
           break;
@@ -203,6 +270,21 @@ export function bootstrapApp() {
       rooms.syncRoomDraft(event.target.value.toUpperCase());
     });
 
+    refs.roomJoinInput.addEventListener("input", (event) => {
+      rooms.syncJoinCode(event.target.value);
+    });
+
+    refs.roomJoinInput.addEventListener("keydown", async (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        await rooms.joinRoomByCode(event.target.value);
+      }
+    });
+
+    refs.ownerRoomSelect.addEventListener("change", (event) => {
+      owner.loadOwnerRoom(event.target.value);
+    });
+
     refs.volumeInput.addEventListener("input", (event) => {
       audio.setVolume(Number(event.target.value));
     });
@@ -216,8 +298,13 @@ export function bootstrapApp() {
     document.addEventListener("click", (event) => {
       const clickedWorkspaceProfile = refs.profileButton?.contains(event.target);
       const clickedLandingProfile = refs.landingProfileButton?.contains(event.target);
+      const clickedOwnerButton = refs.ownerDashButton?.contains(event.target);
+      const clickedOwnerOverlay = event.target === refs.ownerDashboard;
       if (!refs.profilePanel.hidden && !refs.profilePanel.contains(event.target) && !clickedWorkspaceProfile && !clickedLandingProfile) {
         profile.closeProfile();
+      }
+      if (!refs.ownerDashboard.hidden && clickedOwnerOverlay && !clickedOwnerButton) {
+        owner.closeDashboard();
       }
     });
   }

@@ -31,13 +31,7 @@ export function createAppTemplate() {
 
             <div class="topbar__actions">
               <div id="landingAccountToolbar" class="account-toolbar" hidden>
-                <div id="landingStreakBadge" class="streak-chip">
-                  <span class="streak-chip__flame" aria-hidden="true"></span>
-                  <div class="streak-chip__content">
-                    <span class="streak-chip__label">Streak</span>
-                    <strong id="landingStreakValue">0</strong>
-                  </div>
-                </div>
+                <button id="landingStartButton" class="button button--primary button--small" data-action="go-app" type="button">Start Session</button>
                 <button id="landingThemeToggleButton" class="theme-toggle" data-action="toggle-theme" type="button" aria-label="Toggle theme">
                   <span class="theme-toggle__visual" aria-hidden="true">
                     <span class="theme-toggle__icon theme-toggle__icon--sun">Sun</span>
@@ -50,7 +44,7 @@ export function createAppTemplate() {
                   <span id="landingUserAvatar" class="avatar avatar--small"></span>
                   <span class="profile-button__meta">
                     <span id="landingUserName">Workspace</span>
-                    <small id="landingUserStreak">0 day streak</small>
+                    <small>Profile</small>
                   </span>
                 </button>
               </div>
@@ -114,11 +108,16 @@ export function createAppTemplate() {
 
           <section id="landingLoggedIn" class="hero hero--member" hidden>
             <div class="hero__copy">
-              <p class="eyebrow">Welcome back</p>
-              <h1 class="hero__title">Your next clean session is one click away.</h1>
+              <div class="member-identity">
+                <span id="landingHeroAvatar" class="avatar avatar--small"></span>
+                <div>
+                  <p class="eyebrow">Welcome back</p>
+                  <h1 id="landingHeroTitle" class="hero__title">Your next clean session is one click away.</h1>
+                </div>
+              </div>
               <p id="landingMemberMessage" class="hero__body">Your recent progress is ready. Step back into the workspace when you are.</p>
               <div class="hero__actions">
-                <button class="button button--primary" data-action="go-app" type="button">Resume workspace</button>
+                <button class="button button--primary" data-action="go-app" type="button">Start Session</button>
                 <button class="button button--ghost" data-action="scroll-live-board" type="button">See leaderboard</button>
               </div>
             </div>
@@ -132,7 +131,7 @@ export function createAppTemplate() {
               </div>
               <div class="member-summary__grid">
                 <div class="metric-card">
-                  <span class="metric-card__label">Minutes</span>
+                  <span class="metric-card__label">Today's Min</span>
                   <strong id="landingTodayMinutes">0</strong>
                 </div>
                 <div class="metric-card">
@@ -144,7 +143,7 @@ export function createAppTemplate() {
                   <strong id="landingLevelName">Beginner</strong>
                 </div>
                 <div class="metric-card">
-                  <span class="metric-card__label">Score</span>
+                  <span class="metric-card__label">Points</span>
                   <strong id="landingTotalScore">0</strong>
                 </div>
               </div>
@@ -214,12 +213,12 @@ export function createAppTemplate() {
             <div class="workspace-bar__center">
               <div class="segmented-control">
                 <button class="segmented-control__button" data-action="set-mode" data-mode="solo" type="button">Solo</button>
-                <button class="segmented-control__button" data-action="set-mode" data-mode="room" type="button">Room</button>
+                <button class="segmented-control__button segmented-control__button--room" data-action="set-mode" data-mode="room" type="button"><span>Room</span><span id="roomModeCountBadge" class="mode-count-badge" hidden>0</span></button>
               </div>
             </div>
 
             <div class="workspace-bar__actions">
-              <div id="workspaceStreakBadge" class="streak-chip">
+              <div id="workspaceStreakBadge" class="streak-chip" hidden>
                 <span class="streak-chip__flame" aria-hidden="true"></span>
                 <div class="streak-chip__content">
                   <span class="streak-chip__label">Streak</span>
@@ -234,11 +233,12 @@ export function createAppTemplate() {
                 </span>
                 <span id="themeButtonLabel" class="theme-toggle__label">Dark</span>
               </button>
+              <button id="ownerDashButton" class="owner-dash-button" data-action="open-owner-dashboard" type="button" hidden>Live</button>
               <button id="profileButton" class="profile-button profile-button--rich" data-action="toggle-profile" type="button">
                 <span id="profileAvatar" class="avatar avatar--small"></span>
                 <span class="profile-button__meta">
                   <span id="profileButtonName">Workspace</span>
-                  <small id="profileButtonStreak">0 day streak</small>
+                  <small>Profile</small>
                 </span>
               </button>
             </div>
@@ -282,14 +282,23 @@ export function createAppTemplate() {
                     <div id="roomPanel" class="room-panel" hidden>
                       <div class="room-panel__inputs">
                         <label class="field">
-                          <span class="field__label">Room code</span>
-                          <input id="roomCodeInput" class="field__input field__input--mono" type="text" placeholder="AB12CD" maxlength="12">
+                          <span class="field__label">Room name</span>
+                          <input id="roomCodeInput" class="field__input field__input--mono" type="text" placeholder="AB12CD" maxlength="50">
                         </label>
                         <div class="button-row button-row--compact">
-                          <button class="button button--secondary button--small" data-action="join-room" type="button">Join room</button>
+                          <button class="button button--secondary button--small" data-action="join-room" type="button">Use room</button>
+                          <button class="button button--ghost button--small" data-action="copy-room-code" type="button">Copy code</button>
                           <button class="button button--ghost button--small" data-action="create-room" type="button">Create room</button>
                           <button class="button button--ghost button--small" data-action="copy-invite" type="button">Copy invite</button>
                         </div>
+                      </div>
+
+                      <div class="room-join-divider">
+                        <span>Or join with a code:</span>
+                      </div>
+                      <div class="room-join-inline">
+                        <input id="roomJoinInput" class="field__input field__input--mono" type="text" placeholder="Enter room code to join..." maxlength="50">
+                        <button class="button button--primary button--small" data-action="join-room-code" type="button">Join</button>
                       </div>
 
                       <div class="room-panel__meta">
@@ -297,19 +306,19 @@ export function createAppTemplate() {
                           <span class="room-panel__label">Active room</span>
                           <strong id="activeRoomLabel">None</strong>
                         </div>
-                      <div class="room-panel__meta-item">
-                        <span class="room-panel__label">Presence</span>
-                        <strong id="roomPresenceCount">0 people</strong>
+                        <div class="room-panel__meta-item">
+                          <span class="room-panel__label">Presence</span>
+                          <strong id="roomPresenceCount">0 people</strong>
+                        </div>
+                        <div class="room-panel__meta-item">
+                          <span class="room-panel__label">Owner</span>
+                          <strong id="roomOwnerLabel">Waiting</strong>
+                        </div>
+                        <div class="room-panel__meta-item">
+                          <span class="room-panel__label">Sync</span>
+                          <strong id="roomSyncLabel">Idle</strong>
+                        </div>
                       </div>
-                      <div class="room-panel__meta-item">
-                        <span class="room-panel__label">Owner</span>
-                        <strong id="roomOwnerLabel">Waiting</strong>
-                      </div>
-                      <div class="room-panel__meta-item">
-                        <span class="room-panel__label">Sync</span>
-                        <strong id="roomSyncLabel">Idle</strong>
-                      </div>
-                    </div>
 
                       <div id="roomPresenceList" class="participant-list"></div>
                     </div>
@@ -406,7 +415,7 @@ export function createAppTemplate() {
                       <strong id="summaryDistractionValue">0</strong>
                     </div>
                     <div class="metric-card">
-                      <span class="metric-card__label">Score</span>
+                      <span class="metric-card__label">Points</span>
                       <strong id="summaryScoreValue">0</strong>
                     </div>
                     <div class="metric-card">
@@ -474,11 +483,23 @@ export function createAppTemplate() {
 
                   <div class="calendar-block">
                     <button class="text-button text-button--inline" data-action="toggle-section" data-section="calendar" type="button">
-                      <span>Activity calendar</span>
+                      <span id="calendarToggleLabel">Streak Calendar</span>
                       <span id="calendarMetaLabel">Best 0 days</span>
                     </button>
                     <div id="calendarSection" hidden>
+                      <div class="calendar-toolbar">
+                        <button class="icon-button" data-action="calendar-prev" type="button" aria-label="Previous month">&lt;</button>
+                        <strong id="calendarMonthLabel">Month</strong>
+                        <button id="calendarNextButton" class="icon-button" data-action="calendar-next" type="button" aria-label="Next month">&gt;</button>
+                      </div>
+                      <div class="calendar-weekdays">
+                        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                      </div>
                       <div id="calendarGrid" class="calendar-grid"></div>
+                      <div class="calendar-summary-pills">
+                        <span id="calendarLongestLabel" class="calendar-summary-pill">Longest: 0d</span>
+                        <span id="calendarMonthDaysLabel" class="calendar-summary-pill">This month: 0 days</span>
+                      </div>
                     </div>
                   </div>
 
@@ -551,7 +572,7 @@ export function createAppTemplate() {
                 <strong id="profilePanelHours">0.0h</strong>
               </div>
               <div class="metric-card">
-                <span class="metric-card__label">Score</span>
+                <span class="metric-card__label">Points</span>
                 <strong id="profilePanelScore">0</strong>
               </div>
             </div>
@@ -572,6 +593,35 @@ export function createAppTemplate() {
         </section>
       </main>
 
+
+      <div id="ownerDashboard" class="owner-dashboard" hidden>
+        <div class="owner-dashboard__panel card">
+          <div class="owner-dashboard__header">
+            <div class="owner-dashboard__title-wrap">
+              <span class="owner-dashboard__live-dot"></span>
+              <div>
+                <p class="eyebrow">Owner monitor</p>
+                <h3>Live Room Monitor</h3>
+              </div>
+            </div>
+            <div class="owner-dashboard__controls">
+              <select id="ownerRoomSelect" class="field__input field__input--mono owner-dashboard__select"></select>
+              <button class="button button--ghost button--small" data-action="close-owner-dashboard" type="button">Close</button>
+            </div>
+          </div>
+          <div class="owner-dashboard__stats">
+            <div class="metric-card"><span class="metric-card__label">Total Participants</span><strong id="odTotalParticipants">0</strong></div>
+            <div class="metric-card"><span class="metric-card__label">Currently Focusing</span><strong id="odFocusingCount">0</strong></div>
+            <div class="metric-card"><span class="metric-card__label">Distracted Now</span><strong id="odDistractedCount">0</strong></div>
+            <div class="metric-card"><span class="metric-card__label">Left Room</span><strong id="odLeftCount">0</strong></div>
+          </div>
+          <div id="odParticipants" class="owner-dashboard__grid"></div>
+          <div class="owner-dashboard__log card">
+            <div class="owner-dashboard__log-header"><span>Event log</span></div>
+            <div id="odEventLog" class="owner-dashboard__log-list"></div>
+          </div>
+        </div>
+      </div>
       <div id="distractionModal" class="modal" hidden>
         <div class="modal__surface">
           <p class="eyebrow">Attention shift</p>

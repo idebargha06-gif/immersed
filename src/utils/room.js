@@ -1,5 +1,7 @@
+export const URL_ROOM_ID = sanitizeRoomId(new URLSearchParams(window.location.search).get("room") || "");
+
 export function sanitizeRoomId(value = "") {
-  return value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+  return value.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 50);
 }
 
 export function createRoomId() {
@@ -7,8 +9,7 @@ export function createRoomId() {
 }
 
 export function getRoomIdFromUrl() {
-  const params = new URLSearchParams(window.location.search);
-  return sanitizeRoomId(params.get("room") || "");
+  return URL_ROOM_ID;
 }
 
 export function writeRoomIdToUrl(roomId) {
@@ -24,6 +25,12 @@ export function writeRoomIdToUrl(roomId) {
   window.history.replaceState({ roomId: nextRoomId }, "", url);
 }
 
+export function clearRoomIdFromUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("room");
+  window.history.replaceState({}, "", url);
+}
+
 export function getRoomInviteUrl(roomId) {
   const nextRoomId = sanitizeRoomId(roomId);
   const url = new URL(window.location.href);
@@ -32,4 +39,8 @@ export function getRoomInviteUrl(roomId) {
     url.searchParams.set("room", nextRoomId);
   }
   return url.toString();
+}
+
+export function isValidRoomCode(value = "") {
+  return /^[A-Z0-9-]{1,50}$/i.test(value.trim());
 }

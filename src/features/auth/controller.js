@@ -1,3 +1,5 @@
+import { getRandomQuote } from "../../utils/constants.js";
+
 export function createAuthController({
   store,
   repository,
@@ -77,12 +79,51 @@ export function createAuthController({
       leaderboards: {
         ...state.leaderboards,
         room: []
+      },
+      room: {
+        ...state.room,
+        currentRoomId: "",
+        participants: [],
+        activeCount: 0,
+        ownerUid: "",
+        ownerName: "",
+        sessionControl: null,
+        syncRevision: 0,
+        joinCode: ""
+      },
+      owner: {
+        rooms: [],
+        selectedRoomId: "",
+        participants: [],
+        eventLog: [],
+        summary: {
+          total: 0,
+          focusing: 0,
+          distracted: 0,
+          left: 0
+        }
+      },
+      ui: {
+        ...state.ui,
+        quote: "",
+        banner: null,
+        profileOpen: false,
+        ownerDashboardOpen: false,
+        highlightedBadgeId: ""
       }
     }));
 
     openLandingRoute();
     leaderboards.startGlobal();
     await leaderboards.refreshPublicStats();
+
+    store.setState((state) => ({
+      ...state,
+      ui: {
+        ...state.ui,
+        quote: getRandomQuote()
+      }
+    }));
   }
 
   function init() {

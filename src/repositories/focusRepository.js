@@ -17,7 +17,7 @@ import {
   signInWithPopup,
   signOut
 } from "../services/firebase/client.js";
-import { ROOM_PRESENCE_TTL_MS } from "../utils/constants.js";
+import { OWNER_ROOM_LIMIT, ROOM_PRESENCE_DELETE_DELAY_MS, ROOM_PRESENCE_TTL_MS } from "../utils/constants.js";
 import {
   formatSessionDateLabel,
   getRelativeIsoDay,
@@ -27,6 +27,8 @@ import {
   toLegacyDayString
 } from "../utils/date.js";
 import { checkBadges } from "../utils/scoring.js";
+
+const presenceDeleteTimers = new Map();
 
 function createDefaultStats() {
   return {
@@ -79,8 +81,29 @@ function normalizeSession(docSnapshot) {
     timeSpent: data.timeSpent || 0,
     distractions: data.distractions || 0,
     score: data.score || 0,
+    penaltyTotal: data.penaltyTotal || 0,
+    focusPercentage: data.focusPercentage ?? 100,
     sessionMode: data.mode || "normal",
     createdAt: data.timestamp || Date.now()
+  };
+}
+
+function normalizePresence(entry) {
+  const data = entry.data();
+  return {
+    id: entry.id,
+    uid: data.uid || entry.id,
+    name: data.name || "Anonymous",
+    photoURL: data.photoURL || data.avatar || "",
+    active: data.active !== false,
+    joinedAt: data.joinedAt || 0,
+    lastSeenAt: data.lastSeenAt || 0,
+    focusing: Boolean(data.focusing),
+    sessionStarted: data.sessionStarted || 0,
+    distractedAt: data.distractedAt || 0,
+    distractionCount: data.distractionCount || 0,
+    awayDuration: data.awayDuration || 0,
+    leftAt: data.leftAt || 0
   };
 }
 
@@ -104,7 +127,8 @@ export function subscribeLandingLeaderboard(callback) {
       id: entry.id,
       rank: index + 1,
       name: entry.data().name || "Anonymous",
-      score: entry.data().total || 0
+      score: entry.data().total || 0,
+      photoURL: entry.data().photoURL || ""
     }));
 
     callback(entries);
@@ -136,7 +160,8 @@ export function subscribeGlobalLeaderboard(callback) {
       id: entry.id,
       rank: index + 1,
       name: entry.data().name || "Anonymous",
-      score: entry.data().total || 0
+      score: entry.data().total || 0,
+      photoURL: entry.data().photoURL || ""
     }));
 
     callback(entries);
@@ -156,7 +181,8 @@ export function subscribeRoomLeaderboard(roomId, callback) {
       rank: index + 1,
       name: entry.data().name || "Anonymous",
       uid: entry.data().uid || "",
-      score: entry.data().value || 0
+      score: entry.data().value || 0,
+      photoURL: entry.data().photoURL || ""
     }));
 
     callback(entries);
@@ -167,20 +193,17 @@ export function subscribeRoomPresence(roomId, callback) {
   return onSnapshot(collection(db, "rooms", roomId, "presence"), (snapshot) => {
     const now = Date.now();
     const entries = snapshot.docs
-      .map((entry) => {
-        const data = entry.data();
-        return {
-          id: entry.id,
-          uid: data.uid || entry.id,
-          name: data.name || "Anonymous",
-          avatar: data.avatar || "",
-          lastSeenAt: data.lastSeenAt || 0,
-          leftAt: data.leftAt || 0
-        };
-      })
-      .filter((entry) => !entry.leftAt && now - entry.lastSeenAt <= ROOM_PRESENCE_TTL_MS)
+      .map(normalizePresence)
+      .filter((entry) => entry.active && !entry.leftAt && now - entry.lastSeenAt <= ROOM_PRESENCE_TTL_MS)
       .sort((left, right) => left.name.localeCompare(right.name));
 
+    callback(entries);
+  });
+}
+
+export function subscribeOwnerRoomPresence(roomId, callback) {
+  return onSnapshot(collection(db, "rooms", roomId, "presence"), (snapshot) => {
+    const entries = snapshot.docs.map(normalizePresence).sort((left, right) => (right.joinedAt || 0) - (left.joinedAt || 0));
     callback(entries);
   });
 }
@@ -258,18 +281,54 @@ export async function upsertRoomSessionControl({ roomId, user, control }) {
   return sessionControl;
 }
 
+export async function touchActiveRoom({ roomId, user }) {
+  if (!roomId || !user?.uid) {
+    return;
+  }
+
+  await setDoc(doc(db, "activeRooms", roomId), {
+    name: roomId,
+    lastActive: Date.now(),
+    createdBy: user.uid,
+    ownerName: user.displayName || user.email || "Anonymous"
+  }, { merge: true });
+}
+
+export function subscribeActiveRooms(callback) {
+  const roomsQuery = query(collection(db, "activeRooms"), orderBy("lastActive", "desc"), limit(OWNER_ROOM_LIMIT));
+  return onSnapshot(roomsQuery, (snapshot) => {
+    callback(snapshot.docs.map((entry) => ({
+      id: entry.id,
+      name: entry.data().name || entry.id,
+      lastActive: entry.data().lastActive || 0,
+      createdBy: entry.data().createdBy || ""
+    })));
+  });
+}
+
 export async function upsertRoomPresence({ roomId, user }) {
   const presenceRef = doc(db, "rooms", roomId, "presence", user.uid);
   const now = Date.now();
+  const pendingDeleteKey = `${roomId}:${user.uid}`;
+  if (presenceDeleteTimers.has(pendingDeleteKey)) {
+    window.clearTimeout(presenceDeleteTimers.get(pendingDeleteKey));
+    presenceDeleteTimers.delete(pendingDeleteKey);
+  }
 
   await setDoc(
     presenceRef,
     {
       uid: user.uid,
       name: user.displayName || user.email || "Anonymous",
-      avatar: user.photoURL || "",
+      photoURL: user.photoURL || "",
+      active: true,
       joinedAt: now,
       lastSeenAt: now,
+      focusing: false,
+      sessionStarted: 0,
+      distractedAt: 0,
+      distractionCount: 0,
+      awayDuration: 0,
       leftAt: 0
     },
     { merge: true }
@@ -278,21 +337,38 @@ export async function upsertRoomPresence({ roomId, user }) {
   return presenceRef;
 }
 
+export async function updateRoomPresence(roomId, uid, patch = {}) {
+  if (!roomId || !uid) {
+    return;
+  }
+
+  await setDoc(doc(db, "rooms", roomId, "presence", uid), {
+    ...patch,
+    lastSeenAt: patch.lastSeenAt ?? Date.now()
+  }, { merge: true });
+}
+
 export async function removeRoomPresence(roomId, uid) {
   if (!roomId || !uid) {
     return;
   }
 
   const presenceRef = doc(db, "rooms", roomId, "presence", uid);
-  await setDoc(
-    presenceRef,
-    {
-      leftAt: Date.now(),
-      lastSeenAt: 0
-    },
-    { merge: true }
-  );
-  await deleteDoc(presenceRef);
+  await setDoc(presenceRef, {
+    active: false,
+    focusing: false,
+    leftAt: Date.now()
+  }, { merge: true });
+
+  const timerKey = `${roomId}:${uid}`;
+  if (presenceDeleteTimers.has(timerKey)) {
+    window.clearTimeout(presenceDeleteTimers.get(timerKey));
+  }
+
+  presenceDeleteTimers.set(timerKey, window.setTimeout(() => {
+    deleteDoc(presenceRef).catch(() => {});
+    presenceDeleteTimers.delete(timerKey);
+  }, ROOM_PRESENCE_DELETE_DELAY_MS));
 }
 
 export async function loadWorkspace(uid) {
@@ -354,6 +430,8 @@ export async function saveSession({ user, sessionResult, roomId }) {
     addDoc(collection(db, "users", user.uid, "sessions"), {
       goal: sessionResult.goal || "Untitled session",
       score: sessionResult.score,
+      penaltyTotal: sessionResult.penaltyTotal || 0,
+      focusPercentage: sessionResult.focusPercentage ?? 100,
       timeSpent: sessionResult.timeSpent,
       distractions: sessionResult.distractions,
       mode: sessionResult.sessionMode,
@@ -376,6 +454,7 @@ export async function saveSession({ user, sessionResult, roomId }) {
         nightSession: nextStats.nightSession,
         badges: nextStats.badges,
         name: user.displayName || user.email || "Anonymous",
+        photoURL: user.photoURL || "",
         sessionDates: nextStats.activityDays,
         activityDays: nextStats.activityDays,
         updatedAt: timestamp
@@ -389,6 +468,7 @@ export async function saveSession({ user, sessionResult, roomId }) {
       addDoc(collection(db, "rooms", roomId, "scores"), {
         uid: user.uid,
         name: user.displayName || user.email || "Anonymous",
+        photoURL: user.photoURL || "",
         value: sessionResult.score,
         timestamp
       })

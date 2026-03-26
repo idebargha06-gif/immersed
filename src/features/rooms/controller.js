@@ -1,5 +1,5 @@
 import { ROOM_HEARTBEAT_MS } from "../../utils/constants.js";
-import { createRoomId, getRoomInviteUrl, getRoomIdFromUrl, sanitizeRoomId, writeRoomIdToUrl } from "../../utils/room.js";
+import { clearRoomIdFromUrl, createRoomId, getRoomInviteUrl, getRoomIdFromUrl, isValidRoomCode, sanitizeRoomId, URL_ROOM_ID, writeRoomIdToUrl } from "../../utils/room.js";
 
 export function createRoomsController({ store, repository, feedback, leaderboards }) {
   let presenceUnsubscribe = null;
@@ -32,18 +32,11 @@ export function createRoomsController({ store, repository, feedback, leaderboard
     roomUnsubscribe = null;
 
     if (!roomId) {
-      updateRoomMeta({
-        ownerUid: "",
-        ownerName: "",
-        sessionControl: null
-      });
+      updateRoomMeta({ ownerUid: "", ownerName: "", sessionControl: null });
       return;
     }
 
-    const roomData = await repository.ensureRoom({
-      roomId,
-      user: store.getState().auth.user
-    });
+    const roomData = await repository.ensureRoom({ roomId, user: store.getState().auth.user });
     updateRoomMeta(roomData);
 
     roomUnsubscribe = repository.subscribeRoom(roomId, async (nextRoom) => {
@@ -77,9 +70,7 @@ export function createRoomsController({ store, repository, feedback, leaderboard
       }
 
       if (["stopped", "completed"].includes(nextRoom.sessionControl.status)) {
-        await handlers.onRemoteSessionStop?.({
-          completed: nextRoom.sessionControl.status === "completed"
-        });
+        await handlers.onRemoteSessionStop?.({ completed: nextRoom.sessionControl.status === "completed" });
       }
     });
   }
@@ -95,21 +86,42 @@ export function createRoomsController({ store, repository, feedback, leaderboard
     }));
   }
 
+  function syncJoinCode(value) {
+    store.setState((state) => ({
+      ...state,
+      room: {
+        ...state.room,
+        joinCode: value
+      }
+    }));
+  }
+
+  async function updatePresence(patch = {}) {
+    const state = store.getState();
+    if (!state.auth.user?.uid || !state.room.currentRoomId) {
+      return;
+    }
+
+    await repository.updateRoomPresence(state.room.currentRoomId, state.auth.user.uid, patch).catch(() => {});
+    if (state.auth.user) {
+      repository.touchActiveRoom({ roomId: state.room.currentRoomId, user: state.auth.user }).catch(() => {});
+    }
+  }
+
   async function startPresence() {
     const state = store.getState();
     if (!state.auth.user || state.room.mode !== "room" || !state.room.currentRoomId) {
       return;
     }
 
-    await repository.upsertRoomPresence({
-      roomId: state.room.currentRoomId,
-      user: state.auth.user
-    });
+    await repository.upsertRoomPresence({ roomId: state.room.currentRoomId, user: state.auth.user });
+    await repository.touchActiveRoom({ roomId: state.room.currentRoomId, user: state.auth.user }).catch(() => {});
 
     if (heartbeatId) {
       window.clearInterval(heartbeatId);
       heartbeatId = null;
     }
+
     await subscribeRoomState(state.room.currentRoomId);
     presenceUnsubscribe?.();
     presenceUnsubscribe = repository.subscribeRoomPresence(state.room.currentRoomId, (participants) => {
@@ -117,7 +129,8 @@ export function createRoomsController({ store, repository, feedback, leaderboard
         ...nextState,
         room: {
           ...nextState.room,
-          participants
+          participants,
+          activeCount: participants.filter((participant) => participant.active !== false).length
         }
       }));
     });
@@ -125,9 +138,10 @@ export function createRoomsController({ store, repository, feedback, leaderboard
     heartbeatId = window.setInterval(() => {
       const liveState = store.getState();
       if (liveState.auth.user && liveState.room.currentRoomId) {
-        repository.upsertRoomPresence({
-          roomId: liveState.room.currentRoomId,
-          user: liveState.auth.user
+        repository.updateRoomPresence(liveState.room.currentRoomId, liveState.auth.user.uid, {
+          active: true,
+          lastSeenAt: Date.now(),
+          leftAt: 0
         }).catch(() => {});
       }
     }, ROOM_HEARTBEAT_MS);
@@ -136,7 +150,11 @@ export function createRoomsController({ store, repository, feedback, leaderboard
       const handleLeave = () => {
         const liveState = store.getState();
         if (liveState.auth.user && liveState.room.currentRoomId) {
-          repository.removeRoomPresence(liveState.room.currentRoomId, liveState.auth.user.uid).catch(() => {});
+          repository.updateRoomPresence(liveState.room.currentRoomId, liveState.auth.user.uid, {
+            active: false,
+            focusing: false,
+            leftAt: Date.now()
+          }).catch(() => {});
         }
       };
 
@@ -156,14 +174,17 @@ export function createRoomsController({ store, repository, feedback, leaderboard
     presenceUnsubscribe = null;
     roomUnsubscribe?.();
     roomUnsubscribe = null;
+
     if (state.auth.user && state.room.currentRoomId) {
       await repository.removeRoomPresence(state.room.currentRoomId, state.auth.user.uid).catch(() => {});
     }
+
     store.setState((nextState) => ({
       ...nextState,
       room: {
         ...nextState.room,
         participants: [],
+        activeCount: 0,
         ownerUid: "",
         ownerName: "",
         sessionControl: null,
@@ -172,9 +193,9 @@ export function createRoomsController({ store, repository, feedback, leaderboard
     }));
   }
 
-  async function joinRoom(roomId, options = { announce: true }) {
+  async function joinRoom(roomId, options = {}) {
     const nextRoomId = sanitizeRoomId(roomId);
-    if (!nextRoomId) {
+    if (!nextRoomId || !isValidRoomCode(nextRoomId)) {
       feedback.notify({
         type: "error",
         title: "Room code needed",
@@ -190,23 +211,43 @@ export function createRoomsController({ store, repository, feedback, leaderboard
         ...state.room,
         mode: "room",
         currentRoomId: nextRoomId,
-        draftRoomId: nextRoomId
+        draftRoomId: nextRoomId,
+        joinCode: options.clearJoinCode ? "" : state.room.joinCode
       },
       ui: {
         ...state.ui,
         roomBoard: "room"
       }
     }));
+
     leaderboards.startRoom(nextRoomId);
     await startPresence();
 
-    if (options.announce) {
+    if (options.fromUrl) {
+      clearRoomIdFromUrl();
+      feedback.setBanner(`Joined Room: ${nextRoomId}`, "success", 4000);
+    } else if (options.announce !== false) {
       feedback.notify({
         type: "success",
         title: "Room joined",
         message: `You are now in room ${nextRoomId}.`
       });
     }
+  }
+
+  async function joinRoomByCode(roomCode) {
+    const normalized = sanitizeRoomId(roomCode);
+    if (!normalized || !isValidRoomCode(normalized)) {
+      feedback.notify({
+        type: "warning",
+        title: "Invalid code",
+        message: "Room codes can use letters, numbers, and hyphens only."
+      });
+      return;
+    }
+
+    await joinRoom(normalized, { announce: false, clearJoinCode: true });
+    feedback.setBanner(`Joined Room: ${normalized}`, "success", 4000);
   }
 
   async function createRoom() {
@@ -231,17 +272,24 @@ export function createRoomsController({ store, repository, feedback, leaderboard
 
     try {
       await navigator.clipboard.writeText(getRoomInviteUrl(roomId));
-      feedback.notify({
-        type: "success",
-        title: "Invite copied",
-        message: `Room link for ${roomId} copied to your clipboard.`
-      });
+      feedback.notify({ type: "success", title: "Invite copied", message: `Room link for ${roomId} copied to your clipboard.` });
     } catch (error) {
-      feedback.notify({
-        type: "error",
-        title: "Clipboard blocked",
-        message: getRoomInviteUrl(roomId)
-      });
+      feedback.notify({ type: "error", title: "Clipboard blocked", message: getRoomInviteUrl(roomId) });
+    }
+  }
+
+  async function copyRoomCode() {
+    const roomId = store.getState().room.currentRoomId || sanitizeRoomId(store.getState().room.draftRoomId);
+    if (!roomId) {
+      feedback.notify({ type: "warning", title: "No code available", message: "Type or join a room before copying the code." });
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(roomId);
+      feedback.notify({ type: "success", title: "Code copied", message: "Room code copied!" });
+    } catch (error) {
+      feedback.notify({ type: "error", title: "Copy failed", message: roomId });
     }
   }
 
@@ -255,6 +303,8 @@ export function createRoomsController({ store, repository, feedback, leaderboard
       return;
     }
 
+    const draftRoomId = store.getState().room.draftRoomId;
+
     if (mode === "solo") {
       await stopPresence();
       writeRoomIdToUrl("");
@@ -264,8 +314,9 @@ export function createRoomsController({ store, repository, feedback, leaderboard
           ...state.room,
           mode: "solo",
           currentRoomId: "",
-          draftRoomId: "",
+          draftRoomId,
           participants: [],
+          activeCount: 0,
           ownerUid: "",
           ownerName: "",
           sessionControl: null,
@@ -284,7 +335,8 @@ export function createRoomsController({ store, repository, feedback, leaderboard
       ...state,
       room: {
         ...state.room,
-        mode: "room"
+        mode: "room",
+        draftRoomId
       },
       ui: {
         ...state.ui,
@@ -299,9 +351,9 @@ export function createRoomsController({ store, repository, feedback, leaderboard
   }
 
   async function hydrateFromUrl() {
-    const roomId = getRoomIdFromUrl();
+    const roomId = URL_ROOM_ID || getRoomIdFromUrl();
     if (roomId) {
-      await joinRoom(roomId, { announce: false });
+      await joinRoom(roomId, { announce: false, fromUrl: true });
     }
   }
 
@@ -371,13 +423,17 @@ export function createRoomsController({ store, repository, feedback, leaderboard
   return {
     setHandlers,
     syncRoomDraft,
+    syncJoinCode,
     setMode,
     joinRoom,
+    joinRoomByCode,
     createRoom,
     copyInvite,
+    copyRoomCode,
     hydrateFromUrl,
     startPresence,
     stopPresence,
+    updatePresence,
     publishTimerStart,
     publishTimerStop
   };

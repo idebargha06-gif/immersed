@@ -2,6 +2,7 @@ let toastId = 0;
 
 export function createFeedbackController({ store }) {
   const toastTimers = new Map();
+  let bannerTimer = null;
 
   function notify({ type = "info", title, message, duration = 3200 }) {
     const id = `toast-${toastId += 1}`;
@@ -33,14 +34,23 @@ export function createFeedbackController({ store }) {
     }));
   }
 
-  function setBanner(message = "") {
+  function setBanner(message = "", type = "neutral", duration = 0) {
+    if (bannerTimer) {
+      window.clearTimeout(bannerTimer);
+      bannerTimer = null;
+    }
+
     store.setState((state) => ({
       ...state,
       ui: {
         ...state.ui,
-        banner: message
+        banner: message ? { message, type } : null
       }
     }));
+
+    if (message && duration > 0) {
+      bannerTimer = window.setTimeout(() => setBanner(""), duration);
+    }
   }
 
   function showDistractionModal(message) {
