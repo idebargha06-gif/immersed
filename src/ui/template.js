@@ -18,37 +18,26 @@ export function createAppTemplate() {
       <main class="shell">
         <section id="landingPage" class="page page--landing">
           <header class="topbar">
-            <button class="brand brand--button" data-action="go-landing" type="button">
-              <span class="brand__mark">FF</span>
-              <span class="brand__text">FocusFlow</span>
-            </button>
+            <div class="topbar__left">
+              <button class="brand brand--button" data-action="go-landing" type="button">
+                <img src="/icon-512.png" alt="FocusFlow" class="brand__logo">
+                <span class="brand__text">FocusFlow</span>
+              </button>
+            </div>
 
-            <nav class="topbar__nav">
-              <a href="#features">Features</a>
-              <a href="#how-it-works">How it works</a>
-              <a href="#live-board">Leaderboard</a>
-            </nav>
-
-            <div class="topbar__actions">
+            <div class="topbar__right">
               <div id="landingAccountToolbar" class="account-toolbar" hidden>
-                <button id="landingStartButton" class="button button--primary button--small" data-action="go-app" type="button">Start Session</button>
-                <button id="landingThemeToggleButton" class="theme-toggle" data-action="toggle-theme" type="button" aria-label="Toggle theme">
-                  <span class="theme-toggle__visual" aria-hidden="true">
-                    <span class="theme-toggle__icon theme-toggle__icon--sun">Sun</span>
-                    <span class="theme-toggle__thumb"></span>
-                    <span class="theme-toggle__icon theme-toggle__icon--moon">Moon</span>
-                  </span>
-                  <span id="landingThemeButtonLabel" class="theme-toggle__label">Dark</span>
-                </button>
-                <button id="landingProfileButton" class="profile-button profile-button--rich" data-action="toggle-profile" type="button">
+                <div id="landingStreakBadge" class="streak-chip" hidden>
+                  <span class="streak-chip__flame" aria-hidden="true"></span>
+                  <div class="streak-chip__content">
+                    <span class="streak-chip__label">Streak</span>
+                    <strong id="landingStreakValue">0</strong>
+                  </div>
+                </div>
+                <button id="landingProfileButton" class="profile-button profile-button--minimal" data-action="toggle-profile" type="button">
                   <span id="landingUserAvatar" class="avatar avatar--small"></span>
-                  <span class="profile-button__meta">
-                    <span id="landingUserName">Workspace</span>
-                    <small>Profile</small>
-                  </span>
                 </button>
               </div>
-              <button id="landingSignInButton" class="button button--primary" data-action="sign-in" type="button">Sign in with Google</button>
             </div>
           </header>
 
@@ -117,7 +106,7 @@ export function createAppTemplate() {
               </div>
               <p id="landingMemberMessage" class="hero__body">Your recent progress is ready. Step back into the workspace when you are.</p>
               <div class="hero__actions">
-                <button class="button button--primary" data-action="go-app" type="button">Start Session</button>
+                <button class="button button--primary" data-action="go-app" type="button">Go to Workspace</button>
                 <button class="button button--ghost" data-action="scroll-live-board" type="button">See leaderboard</button>
               </div>
             </div>
@@ -205,19 +194,14 @@ export function createAppTemplate() {
 
         <section id="mainApp" class="page page--app" hidden>
           <header class="workspace-bar">
-            <button class="brand brand--button" data-action="go-landing" type="button">
-              <span class="brand__mark">FF</span>
-              <span class="brand__text">FocusFlow</span>
-            </button>
-
-            <div class="workspace-bar__center">
-              <div class="segmented-control">
-                <button class="segmented-control__button" data-action="set-mode" data-mode="solo" type="button">Solo</button>
-                <button class="segmented-control__button segmented-control__button--room" data-action="set-mode" data-mode="room" type="button"><span>Room</span><span id="roomModeCountBadge" class="mode-count-badge" hidden>0</span></button>
-              </div>
+            <div class="workspace-bar__left">
+              <button class="brand brand--button" data-action="go-landing" type="button">
+                <img src="/icon-512.png" alt="FocusFlow" class="brand__logo">
+                <span class="brand__text">FocusFlow</span>
+              </button>
             </div>
 
-            <div class="workspace-bar__actions">
+            <div class="workspace-bar__right">
               <div id="workspaceStreakBadge" class="streak-chip" hidden>
                 <span class="streak-chip__flame" aria-hidden="true"></span>
                 <div class="streak-chip__content">
@@ -225,21 +209,8 @@ export function createAppTemplate() {
                   <strong id="workspaceStreakValue">0</strong>
                 </div>
               </div>
-              <button id="themeToggleButton" class="theme-toggle" data-action="toggle-theme" type="button" aria-label="Toggle theme">
-                <span class="theme-toggle__visual" aria-hidden="true">
-                  <span class="theme-toggle__icon theme-toggle__icon--sun">Sun</span>
-                  <span id="themeToggleThumb" class="theme-toggle__thumb"></span>
-                  <span class="theme-toggle__icon theme-toggle__icon--moon">Moon</span>
-                </span>
-                <span id="themeButtonLabel" class="theme-toggle__label">Dark</span>
-              </button>
-              <button id="ownerDashButton" class="owner-dash-button" data-action="open-owner-dashboard" type="button" hidden>Live</button>
-              <button id="profileButton" class="profile-button profile-button--rich" data-action="toggle-profile" type="button">
+              <button id="profileButton" class="profile-button profile-button--minimal" data-action="toggle-profile" type="button">
                 <span id="profileAvatar" class="avatar avatar--small"></span>
-                <span class="profile-button__meta">
-                  <span id="profileButtonName">Workspace</span>
-                  <small>Profile</small>
-                </span>
               </button>
             </div>
           </header>
@@ -270,6 +241,10 @@ export function createAppTemplate() {
                   <input id="focusGoalInput" class="field__input" type="text" placeholder="Finish the deck, ship the build, draft the proposal...">
                 </label>
 
+                <div class="field">
+                  <span class="field__label">Session Type</span>
+                </div>
+
                 <div class="session-layout">
                   <div class="session-layout__left">
                     <div class="button-row button-row--compact">
@@ -278,6 +253,13 @@ export function createAppTemplate() {
                       <button class="button button--ghost button--small" data-action="set-session-mode" data-session-mode="sprint" type="button">Sprint</button>
                     </div>
                     <p id="sessionModeDescription" class="support-text"></p>
+                    <div class="button-row button-row--compact">
+                      <button class="button button--ghost button--small" data-action="set-mode" data-mode="solo" type="button">Solo</button>
+                      <button class="button button--ghost button--small" data-action="set-mode" data-mode="room" type="button">
+                        <span>Room</span>
+                        <span id="roomModeCountBadge" class="mode-count-badge" hidden>0</span>
+                      </button>
+                    </div>
 
                     <div id="roomPanel" class="room-panel" hidden>
                       <div class="room-panel__inputs">
@@ -555,83 +537,79 @@ export function createAppTemplate() {
                   <p id="profilePanelEmail" class="support-text"></p>
                 </div>
               </div>
-              <span id="profilePanelLevel" class="status-badge">Beginner</span>
             </div>
 
-            <div class="profile-panel__stats">
-              <div class="metric-card">
-                <span class="metric-card__label">Streak</span>
-                <strong id="profilePanelStreak">0</strong>
-              </div>
-              <div class="metric-card">
-                <span class="metric-card__label">Sessions</span>
-                <strong id="profilePanelSessions">0</strong>
-              </div>
-              <div class="metric-card">
-                <span class="metric-card__label">Focus</span>
-                <strong id="profilePanelHours">0.0h</strong>
-              </div>
-              <div class="metric-card">
-                <span class="metric-card__label">Points</span>
-                <strong id="profilePanelScore">0</strong>
-              </div>
+            <div class="profile-panel__menu-label">
+              <svg class="profile-menu-item__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.08 7.08 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.13.53-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.5.41 1.05.72 1.63.94l.36 2.54a.5.5 0 0 0 .49.42h3.8a.5.5 0 0 0 .49-.42l.36-2.54c.58-.22 1.13-.53 1.63-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/>
+              </svg>
+              <span>Settings</span>
             </div>
 
-            <div class="profile-panel__settings">
+            <div class="profile-panel__menu">
               <button class="setting-row" data-action="toggle-theme" type="button">
+                <svg class="profile-menu-item__icon" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+                </svg>
                 <span>Theme</span>
                 <strong id="profileThemeLabel">Dark</strong>
               </button>
               <button class="setting-row" data-action="toggle-notifications" type="button">
+                <svg class="profile-menu-item__icon" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5-6.71V3a2 2 0 1 0-4 0v1.29A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2z"/>
+                </svg>
                 <span>Notifications</span>
                 <strong id="notificationLabel">On</strong>
               </button>
+              <button class="setting-row setting-row--danger" data-action="sign-out" type="button">
+                <svg class="profile-menu-item__icon" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M11 19H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5v2H6v10h5v2zm7.59-7L15 8.41 16.41 7 22 12.59 16.41 18 15 16.59 18.59 13H9v-2h9.59z"/>
+                </svg>
+                <span>Sign out</span>
+              </button>
             </div>
-
-            <button class="button button--secondary button--full" data-action="sign-out" type="button">Sign out</button>
           </div>
-        </section>
-      </main>
 
-
-      <div id="ownerDashboard" class="owner-dashboard" hidden>
-        <div class="owner-dashboard__panel card">
-          <div class="owner-dashboard__header">
-            <div class="owner-dashboard__title-wrap">
-              <span class="owner-dashboard__live-dot"></span>
-              <div>
-                <p class="eyebrow">Owner monitor</p>
-                <h3>Live Room Monitor</h3>
+          <div id="ownerDashboard" class="owner-dashboard" hidden>
+            <div class="owner-dashboard__panel card">
+              <div class="owner-dashboard__header">
+                <div class="owner-dashboard__title-wrap">
+                  <span class="owner-dashboard__live-dot"></span>
+                  <div>
+                    <p class="eyebrow">Owner monitor</p>
+                    <h3>Live Room Monitor</h3>
+                  </div>
+                </div>
+                <div class="owner-dashboard__controls">
+                  <select id="ownerRoomSelect" class="field__input field__input--mono owner-dashboard__select"></select>
+                  <button class="button button--ghost button--small" data-action="close-owner-dashboard" type="button">Close</button>
+                </div>
+              </div>
+              <div class="owner-dashboard__stats">
+                <div class="metric-card"><span class="metric-card__label">Total Participants</span><strong id="odTotalParticipants">0</strong></div>
+                <div class="metric-card"><span class="metric-card__label">Currently Focusing</span><strong id="odFocusingCount">0</strong></div>
+                <div class="metric-card"><span class="metric-card__label">Distracted Now</span><strong id="odDistractedCount">0</strong></div>
+                <div class="metric-card"><span class="metric-card__label">Left Room</span><strong id="odLeftCount">0</strong></div>
+              </div>
+              <div id="odParticipants" class="owner-dashboard__grid"></div>
+              <div class="owner-dashboard__log card">
+                <div class="owner-dashboard__log-header"><span>Event log</span></div>
+                <div id="odEventLog" class="owner-dashboard__log-list"></div>
               </div>
             </div>
-            <div class="owner-dashboard__controls">
-              <select id="ownerRoomSelect" class="field__input field__input--mono owner-dashboard__select"></select>
-              <button class="button button--ghost button--small" data-action="close-owner-dashboard" type="button">Close</button>
+          </div>
+          <div id="distractionModal" class="modal" hidden>
+            <div class="modal__surface">
+              <p class="eyebrow">Attention shift</p>
+              <h3>Focus was interrupted.</h3>
+              <p id="distractionModalText" class="modal__body"></p>
+              <div class="button-row button-row--compact">
+                <button class="button button--primary button--small" data-action="close-distraction-modal" type="button">Back to session</button>
+              </div>
             </div>
-          </div>
-          <div class="owner-dashboard__stats">
-            <div class="metric-card"><span class="metric-card__label">Total Participants</span><strong id="odTotalParticipants">0</strong></div>
-            <div class="metric-card"><span class="metric-card__label">Currently Focusing</span><strong id="odFocusingCount">0</strong></div>
-            <div class="metric-card"><span class="metric-card__label">Distracted Now</span><strong id="odDistractedCount">0</strong></div>
-            <div class="metric-card"><span class="metric-card__label">Left Room</span><strong id="odLeftCount">0</strong></div>
-          </div>
-          <div id="odParticipants" class="owner-dashboard__grid"></div>
-          <div class="owner-dashboard__log card">
-            <div class="owner-dashboard__log-header"><span>Event log</span></div>
-            <div id="odEventLog" class="owner-dashboard__log-list"></div>
-          </div>
+          </div>
         </div>
-      </div>
-      <div id="distractionModal" class="modal" hidden>
-        <div class="modal__surface">
-          <p class="eyebrow">Attention shift</p>
-          <h3>Focus was interrupted.</h3>
-          <p id="distractionModalText" class="modal__body"></p>
-          <div class="button-row button-row--compact">
-            <button class="button button--primary button--small" data-action="close-distraction-modal" type="button">Back to session</button>
-          </div>
-        </div>
-      </div>
+      </div>
 
       <div id="badgeModal" class="modal" hidden>
         <div class="modal__surface">
@@ -646,3 +624,6 @@ export function createAppTemplate() {
     </div>
   `;
 }
+
+
+

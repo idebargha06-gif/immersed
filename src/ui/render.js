@@ -4,7 +4,6 @@ import {
   DAILY_GOAL_MINUTES,
   DAY_LABELS,
   FEEDBACK_POOLS,
-  OWNER_UID,
   SESSION_MODES
 } from "../utils/constants.js";
 import { createAvatarMarkup, hydrateAvatarImages, mountAvatar } from "../utils/avatar.js";
@@ -28,8 +27,10 @@ function renderLanding(state, refs) {
   const isSignedIn = Boolean(state.auth.user);
   refs.landingLoggedOut.hidden = isSignedIn;
   refs.landingLoggedIn.hidden = !isSignedIn;
-  refs.landingSignInButton.hidden = isSignedIn;
   refs.landingAccountToolbar.hidden = !isSignedIn;
+  refs.landingStreakBadge.hidden = !isSignedIn;
+  refs.landingStreakValue.textContent = String(state.stats.streak);
+  refs.landingStreakBadge.dataset.active = state.stats.streak > 0 ? "true" : "false";
 
   refs.publicMinutesMetric.textContent = formatCompactMinutes(state.publicStats.totalMinutes);
   refs.publicSessionMetric.textContent = String(state.publicStats.totalSessions);
@@ -55,7 +56,7 @@ function renderLanding(state, refs) {
   mountAvatar(refs.landingHeroAvatar, state.auth.user, { sizeClass: "avatar--small" });
   mountAvatar(refs.profilePanelAvatar, state.auth.user);
 
-  refs.landingUserName.textContent = firstName;
+  // refs.landingUserName.textContent = firstName; // This element was removed from template
   refs.landingHeroTitle.textContent = `${firstName}, your next clean session is one click away.`;
   refs.profilePanelName.textContent = state.auth.user.displayName || "FocusFlow";
   refs.profilePanelEmail.textContent = state.auth.user.email || "";
@@ -76,7 +77,6 @@ function renderWorkspace(state, refs) {
   const showApp = state.route.view === "app" && Boolean(state.auth.user);
   refs.mainApp.hidden = !showApp;
   refs.landingPage.hidden = showApp;
-  refs.ownerDashButton.hidden = !(state.auth.user?.uid === OWNER_UID);
 
   if (!showApp) {
     return;
@@ -84,12 +84,12 @@ function renderWorkspace(state, refs) {
 
   mountAvatar(refs.profileAvatar, state.auth.user, { sizeClass: "avatar--small" });
   mountAvatar(refs.profilePanelAvatar, state.auth.user);
-  refs.profileButtonName.textContent = getFirstName(state.auth.user.displayName || state.auth.user.email || "Workspace");
-  refs.profilePanelName.textContent = state.auth.user.displayName || "FocusFlow";
-  refs.profilePanelEmail.textContent = state.auth.user.email || "";
+  // refs.profileButtonName.textContent = getFirstName(state.auth.user.displayName || state.auth.user.email || "Workspace"); // Element removed from template
+  // refs.profilePanelName.textContent = state.auth.user.displayName || "FocusFlow"; // Element removed from template
+  // refs.profilePanelEmail.textContent = state.auth.user.email || ""; // Element removed from template
   refs.profilePanel.hidden = !state.ui.profileOpen;
   refs.workspaceStreakValue.textContent = String(state.stats.streak);
-  refs.workspaceStreakBadge.hidden = state.stats.streak <= 0;
+  refs.workspaceStreakBadge.hidden = false;
   refs.workspaceStreakBadge.dataset.active = state.stats.streak > 0 ? "true" : "false";
   refs.roomModeCountBadge.hidden = state.room.mode !== "room" || state.room.activeCount <= 0;
   refs.roomModeCountBadge.textContent = String(state.room.activeCount);
@@ -225,11 +225,12 @@ function renderCalendar(state, refs) {
   const activeWeekDays = state.stats.weekData.filter((value) => value > 0).length;
   refs.weekConsistencyLabel.textContent = `${Math.round((activeWeekDays / 7) * 100)}% consistency`;
 
-  refs.profilePanelLevel.textContent = level.name;
-  refs.profilePanelStreak.textContent = String(state.stats.streak);
-  refs.profilePanelSessions.textContent = String(state.stats.totalSessions);
-  refs.profilePanelHours.textContent = formatHoursFromMinutes(state.stats.totalMinutes);
-  refs.profilePanelScore.textContent = String(state.stats.totalScore);
+  // Profile panel stats elements removed from template - commenting out to prevent errors
+  // refs.profilePanelLevel.textContent = level.name;
+  // refs.profilePanelStreak.textContent = String(state.stats.streak);
+  // refs.profilePanelSessions.textContent = String(state.stats.totalSessions);
+  // refs.profilePanelHours.textContent = formatHoursFromMinutes(state.stats.totalMinutes);
+  // refs.profilePanelScore.textContent = String(state.stats.totalScore);
 }
 
 function renderHistory(state, refs) {
@@ -381,12 +382,28 @@ function renderOwnerDashboard(state, refs) {
 
 function renderTheme(state, refs) {
   document.body.dataset.theme = state.ui.theme;
-  refs.themeButtonLabel.textContent = state.ui.theme === "dark" ? "Dark" : "Light";
-  refs.landingThemeButtonLabel.textContent = state.ui.theme === "dark" ? "Dark" : "Light";
-  refs.themeToggleButton.dataset.theme = state.ui.theme;
-  refs.landingThemeToggleButton.dataset.theme = state.ui.theme;
-  refs.profileThemeLabel.textContent = state.ui.theme === "dark" ? "Dark" : "Light";
-  refs.notificationLabel.textContent = state.ui.notificationsEnabled ? "On" : "Off";
+  
+  // Update theme toggle buttons with new structure
+  if (refs.themeToggleButton) {
+    refs.themeToggleButton.dataset.theme = state.ui.theme;
+  }
+  if (refs.landingThemeToggleButton) {
+    refs.landingThemeToggleButton.dataset.theme = state.ui.theme;
+  }
+  
+  // Update old labels if they exist (for backward compatibility)
+  if (refs.themeButtonLabel) {
+    refs.themeButtonLabel.textContent = state.ui.theme === "dark" ? "Dark" : "Light";
+  }
+  if (refs.landingThemeButtonLabel) {
+    refs.landingThemeButtonLabel.textContent = state.ui.theme === "dark" ? "Dark" : "Light";
+  }
+  if (refs.profileThemeLabel) {
+    refs.profileThemeLabel.textContent = state.ui.theme === "dark" ? "Dark" : "Light";
+  }
+  if (refs.notificationLabel) {
+    refs.notificationLabel.textContent = state.ui.notificationsEnabled ? "On" : "Off";
+  }
 }
 
 function renderLoader(state, refs) {
@@ -418,3 +435,10 @@ export function createRenderer(refs) {
     return state;
   };
 }
+
+
+
+
+
+
+

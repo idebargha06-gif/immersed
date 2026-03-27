@@ -1,3 +1,7 @@
 import { bootstrapApp } from "./app/bootstrap.js";
 
-bootstrapApp();
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bootstrapApp, { once: true });
+} else {
+  bootstrapApp();
+}

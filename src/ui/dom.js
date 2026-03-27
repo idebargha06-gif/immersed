@@ -16,7 +16,8 @@ export function mountApp(root) {
     toastStack: getById(root, "toastStack"),
     landingSignInButton: getById(root, "landingSignInButton"),
     landingAccountToolbar: getById(root, "landingAccountToolbar"),
-    landingStartButton: getById(root, "landingStartButton"),
+    landingStreakBadge: getById(root, "landingStreakBadge"),
+    landingStreakValue: getById(root, "landingStreakValue"),
     landingThemeToggleButton: getById(root, "landingThemeToggleButton"),
     landingThemeButtonLabel: getById(root, "landingThemeButtonLabel"),
     landingProfileButton: getById(root, "landingProfileButton"),
@@ -141,3 +142,6 @@ export function mountApp(root) {
     boardButtons: [...root.querySelectorAll("[data-board]")]
   };
 }
+
+
+

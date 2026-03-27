@@ -18,6 +18,11 @@ import { getMonthKey, shiftMonthKey } from "../utils/date.js";
 export function bootstrapApp() {
   const root = document.querySelector("#app");
   const refs = mountApp(root);
+  // Keep profile dropdown outside route-specific containers so it can open
+  // from both landing and workspace views.
+  if (refs.profilePanel && refs.mainApp?.contains(refs.profilePanel)) {
+    refs.root.appendChild(refs.profilePanel);
+  }
   const store = createStore(createInitialState());
   const render = createRenderer(refs);
 
@@ -294,6 +299,14 @@ export function bootstrapApp() {
         audio.toggleCategory(button.dataset.sound);
       });
     });
+    const handleProfileToggle = (event) => {
+      event.stopPropagation();
+      profile.toggleProfile();
+    };
+
+    refs.profileButton?.addEventListener("click", handleProfileToggle);
+    refs.landingProfileButton?.addEventListener("click", handleProfileToggle);
+    refs.profilePanelAvatar?.addEventListener("click", handleProfileToggle);
 
     document.addEventListener("click", (event) => {
       const clickedWorkspaceProfile = refs.profileButton?.contains(event.target);
@@ -320,3 +333,6 @@ export function bootstrapApp() {
   leaderboards.refreshPublicStats().catch(() => {});
   auth.init();
 }
+
+
+
