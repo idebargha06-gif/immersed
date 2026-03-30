@@ -14,6 +14,7 @@ export function mountApp(root) {
     landingPage: getById(root, "landingPage"),
     mainApp: getById(root, "mainApp"),
     toastStack: getById(root, "toastStack"),
+    topAuthButton: getById(root, "topAuthButton"),
     landingSignInButton: getById(root, "landingSignInButton"),
     landingAccountToolbar: getById(root, "landingAccountToolbar"),
     landingStreakBadge: getById(root, "landingStreakBadge"),
@@ -38,6 +39,23 @@ export function mountApp(root) {
     landingLevelName: getById(root, "landingLevelName"),
     landingTotalScore: getById(root, "landingTotalScore"),
     landingLeaderboard: getById(root, "landingLeaderboard"),
+    landingSignedMinutesMetric: getById(root, "landingSignedMinutesMetric"),
+    landingSignedSessionMetric: getById(root, "landingSignedSessionMetric"),
+    landingSignedLiveMetric: getById(root, "landingSignedLiveMetric"),
+    landingPreviewProgress: getById(root, "landingPreviewProgress"),
+    landingPreviewTimer: getById(root, "landingPreviewTimer"),
+    landingPreviewStartButton: getById(root, "landingPreviewStartButton"),
+    landingPreviewStopButton: getById(root, "landingPreviewStopButton"),
+    landingPreviewResetButton: getById(root, "landingPreviewResetButton"),
+    landingPreviewStatusDot: getById(root, "landingPreviewStatusDot"),
+    landingPreviewStatusLabel: getById(root, "landingPreviewStatusLabel"),
+    landingPreviewDistractions: getById(root, "landingPreviewDistractions"),
+    landingPreviewSessionCount: getById(root, "landingPreviewSessionCount"),
+    landingPreviewFocusedMinutes: getById(root, "landingPreviewFocusedMinutes"),
+    landingPresenceList: getById(root, "landingPresenceList"),
+    landingHostToggle: getById(root, "landingHostToggle"),
+    landingHostPanel: getById(root, "landingHostPanel"),
+    landingHostList: getById(root, "landingHostList"),
     workspaceBanner: getById(root, "workspaceBanner"),
     quoteBar: getById(root, "quoteBar"),
     workspaceStreakBadge: getById(root, "workspaceStreakBadge"),
@@ -142,4 +160,5 @@ export function mountApp(root) {
     boardButtons: [...root.querySelectorAll("[data-board]")]
   };
 }
+
 

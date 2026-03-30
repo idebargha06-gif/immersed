@@ -1,5 +1,5 @@
-export const APP_TITLE = "FocusFlow";
-export const DEFAULT_TITLE = "FocusFlow | Deep work that feels intentional";
+export const APP_TITLE = "Immersia";
+export const DEFAULT_TITLE = "Immersia | Live focus rooms for meaningful progress";
 export const DAILY_GOAL_MINUTES = 60;
 export const CIRCLE_RADIUS = 88;
 export const CIRCLE_LENGTH = 2 * Math.PI * CIRCLE_RADIUS;
@@ -79,7 +79,7 @@ export const QUOTES = [
   "Focus is deciding what not to do. - John Carmack",
   "Do not watch the clock. Do what it does. Keep going. - Sam Levenson",
   "A little progress each day adds up to big results. - Satya Nani",
-  "Progress grows out of consistency. - FocusFlow"
+  "Progress grows out of consistency. - Immersia"
 ];
 
 export function getRandomQuote(exclude = "") {
@@ -108,3 +108,4 @@ export const FEEDBACK_POOLS = {
     "Not your cleanest round, but it still created signal for the next one."
   ]
 };
+

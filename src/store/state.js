@@ -23,7 +23,7 @@ export function createEmptyStats() {
 export function createInitialState() {
   const roomId = getRoomIdFromUrl();
   const selectedDuration = DEFAULT_DURATIONS[2].seconds;
-  const savedTheme = localStorage.getItem("ff_theme") === "light" ? "light" : "dark";
+  const savedTheme = localStorage.getItem("ff_theme") === "dark" ? "dark" : "light";
   const notificationsEnabled = localStorage.getItem("ff_notifications") !== "off";
   const savedSound = localStorage.getItem("ff_sound") || "";
   const savedVolume = Number(localStorage.getItem("ff_volume") || "40");
@@ -130,4 +130,5 @@ export function createInitialState() {
     }
   };
 }
+
 

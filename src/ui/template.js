@@ -7,7 +7,7 @@ export function createAppTemplate() {
 
       <div id="authLoader" class="auth-loader">
         <div class="auth-loader__card">
-          <div class="auth-loader__mark">FF</div>
+          <div class="auth-loader__mark">IM</div>
           <div class="auth-loader__ring"></div>
           <p>Preparing your workspace...</p>
         </div>
@@ -20,13 +20,14 @@ export function createAppTemplate() {
           <header class="topbar">
             <div class="topbar__left">
               <button class="brand brand--button" data-action="go-landing" type="button">
-                <img src="/icon-512.png" alt="FocusFlow" class="brand__logo">
-                <span class="brand__text">FocusFlow</span>
+                <img src="/icon-512.png" alt="Immersia" class="brand__logo">
+                <span class="brand__text">Immersia</span>
               </button>
 
             </div>
 
             <div class="topbar__right">
+              <button id="topAuthButton" class="button button--primary button--small topbar__auth-button" data-action="top-auth" type="button">Sign up / in</button>
               <div id="landingAccountToolbar" class="account-toolbar" hidden>
                 <div id="landingStreakBadge" class="streak-chip" hidden>
                   <span class="streak-chip__flame" aria-hidden="true"></span>
@@ -47,10 +48,9 @@ export function createAppTemplate() {
               <p class="eyebrow">Measured focus for ambitious work</p>
               <h1 class="hero__title">A focus ritual with live momentum, ambient depth, and meaningful progress.</h1>
               <p class="hero__body">
-                FocusFlow combines timed sessions, live rooms, leaderboards, streaks, and distraction-aware scoring
-                in a calmer workspace that helps the work itself stay central.
+                Immersia blends timed sessions, live rooms, ambient sound, and distraction-aware signals into a calm space for deep, deliberate work.
               </p>
-              <div class="hero__actions">
+              <div class="hero__actions hero__actions--landing">
                 <button class="button button--primary" data-action="sign-in" type="button">Start with Google</button>
                 <button class="button button--ghost" data-action="scroll-live-board" type="button">See live board</button>
               </div>
@@ -65,33 +65,53 @@ export function createAppTemplate() {
                 </div>
                 <div class="metric">
                   <span id="publicUserMetric" class="metric__value">-</span>
-                  <span class="metric__label">active accounts</span>
+                  <span class="metric__label">active accounts <span class="status-dot status-dot--live" aria-hidden="true"></span></span>
                 </div>
               </div>
             </div>
 
             <div class="hero__preview card">
-              <p class="preview__label">Focus preview</p>
+              <div class="preview__header">
+                <p class="preview__label">Interactive focus preview</p>
+                <label class="host-toggle" for="landingHostToggle">
+                  <input id="landingHostToggle" type="checkbox">
+                  <span>Host view</span>
+                </label>
+              </div>
               <div class="preview__ring">
                 <svg viewBox="0 0 200 200" class="preview__ring-svg" aria-hidden="true">
                   <circle class="preview__ring-track" cx="100" cy="100" r="88"></circle>
-                  <circle class="preview__ring-progress" cx="100" cy="100" r="88"></circle>
+                  <circle id="landingPreviewProgress" class="preview__ring-progress" cx="100" cy="100" r="88"></circle>
                 </svg>
-                <div class="preview__ring-value">25:00</div>
+                <div id="landingPreviewTimer" class="preview__ring-value">25:00</div>
+              </div>
+              <div class="button-row button-row--compact preview__controls">
+                <button id="landingPreviewStartButton" class="button button--primary button--small" type="button">Start</button>
+                <button id="landingPreviewStopButton" class="button button--ghost button--small" type="button">Stop</button>
+                <button id="landingPreviewResetButton" class="button button--ghost button--small" type="button">Reset</button>
               </div>
               <div class="preview__items">
                 <div class="preview__item">
-                  <span class="preview__item-label">Mode</span>
-                  <strong>Deep work</strong>
+                  <span class="preview__item-label">Your status</span>
+                  <strong><span id="landingPreviewStatusDot" class="status-dot status-dot--live" aria-hidden="true"></span><span id="landingPreviewStatusLabel">Live</span></strong>
                 </div>
                 <div class="preview__item">
-                  <span class="preview__item-label">Signals</span>
-                  <strong>Rooms, streaks, live score</strong>
+                  <span class="preview__item-label">Distractions</span>
+                  <strong id="landingPreviewDistractions">0</strong>
                 </div>
                 <div class="preview__item">
-                  <span class="preview__item-label">Atmosphere</span>
-                  <strong>Locally hosted ambient sound</strong>
+                  <span class="preview__item-label">Sessions done</span>
+                  <strong id="landingPreviewSessionCount">0</strong>
                 </div>
+                <div class="preview__item">
+                  <span class="preview__item-label">Minutes focused</span>
+                  <strong id="landingPreviewFocusedMinutes">0</strong>
+                </div>
+              </div>
+              <ul id="landingPresenceList" class="presence-list"></ul>
+              <div id="landingHostPanel" class="preview__host" hidden>
+                <p class="preview__item-label">Host dashboard: distraction counts</p>
+                <ul id="landingHostList" class="host-list"></ul>
               </div>
             </div>
           </section>
@@ -105,9 +125,23 @@ export function createAppTemplate() {
                 </div>
               </div>
               <p id="landingMemberMessage" class="hero__body">Your recent progress is ready. Step back into the workspace when you are.</p>
-              <div class="hero__actions">
+              <div class="hero__actions hero__actions--landing">
                 <button class="button button--primary" data-action="go-app" type="button">Go to Workspace</button>
                 <button class="button button--ghost" data-action="scroll-live-board" type="button">See leaderboard</button>
+              </div>
+              <div class="hero__metrics hero__metrics--member">
+                <div class="metric">
+                  <span id="landingSignedMinutesMetric" class="metric__value">0</span>
+                  <span class="metric__label">minutes focused</span>
+                </div>
+                <div class="metric">
+                  <span id="landingSignedSessionMetric" class="metric__value">0</span>
+                  <span class="metric__label">sessions completed</span>
+                </div>
+                <div class="metric">
+                  <span id="landingSignedLiveMetric" class="metric__value">0</span>
+                  <span class="metric__label">live accounts <span class="status-dot status-dot--live" aria-hidden="true"></span></span>
+                </div>
               </div>
             </div>
             <div class="member-summary card">
@@ -190,14 +224,50 @@ export function createAppTemplate() {
               <ul id="landingLeaderboard" class="board-list board-list--landing"></ul>
             </div>
           </section>
+          <footer class="landing-footer card" id="landingFooter">
+            <div class="landing-footer__top">
+              <div class="landing-footer__brand">
+                <div class="landing-footer__identity">
+                  <img src="/icon-512.png" alt="Immersia" class="brand__logo">
+                  <div>
+                    <strong>Immersia</strong>
+                    <p>Measured presence for meaningful work.</p>
+                  </div>
+                </div>
+                <p>Build deep focus momentum with live rooms, clean timers, and distraction-aware visibility for every session.</p>
+              </div>
+              <div class="landing-footer__links">
+                <div>
+                  <h3>Product</h3>
+                  <a href="#features">Features</a>
+                  <a href="#how-it-works">How it works</a>
+                  <a href="#live-board">Live board</a>
+                </div>
+                <div>
+                  <h3>Company</h3>
+                  <a href="#landingPage">About</a>
+                  <a href="#landingPage">Community</a>
+                  <a href="#landingPage">Contact</a>
+                </div>
+              </div>
+            </div>
+            <div class="landing-footer__bottom">
+              <p>&copy; 2026 Immersia. Always live <span class="status-dot status-dot--live" aria-hidden="true"></span></p>
+              <div class="landing-footer__legal">
+                <a href="#landingPage">Privacy policy</a>
+                <a href="#landingPage">Terms</a>
+                <a href="#landingPage">FAQ</a>
+              </div>
+            </div>
+          </footer>
         </section>
 
         <section id="mainApp" class="page page--app" hidden>
           <header class="workspace-bar">
             <div class="workspace-bar__left">
               <button class="brand brand--button" data-action="go-landing" type="button">
-                <img src="/icon-512.png" alt="FocusFlow" class="brand__logo">
-                <span class="brand__text">FocusFlow</span>
+                <img src="/icon-512.png" alt="Immersia" class="brand__logo">
+                <span class="brand__text">Immersia</span>
               </button>
             </div>
 
@@ -535,7 +605,7 @@ export function createAppTemplate() {
               <div class="profile-panel__identity">
                 <span id="profilePanelAvatar" class="avatar"></span>
                 <div>
-                  <strong id="profilePanelName">FocusFlow</strong>
+                  <strong id="profilePanelName">Immersia</strong>
                   <p id="profilePanelEmail" class="support-text"></p>
                 </div>
               </div>
@@ -628,4 +698,11 @@ export function createAppTemplate() {
     </div>
   `;
 }
+
+
+
+
+
+
+
 

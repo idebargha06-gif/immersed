@@ -1,10 +1,12 @@
 import {
   APP_TITLE,
+  DEFAULT_TITLE,
   CIRCLE_LENGTH,
   DAILY_GOAL_MINUTES,
   DAY_LABELS,
   FEEDBACK_POOLS,
-  SESSION_MODES
+  SESSION_MODES,
+  OWNER_UID
 } from "../utils/constants.js";
 import { createAvatarMarkup, hydrateAvatarImages, mountAvatar } from "../utils/avatar.js";
 import { formatMonthLabel, getMonthGrid, getMonthKey, getTodayIsoDay } from "../utils/date.js";
@@ -35,6 +37,18 @@ function renderLanding(state, refs) {
   refs.publicMinutesMetric.textContent = formatCompactMinutes(state.publicStats.totalMinutes);
   refs.publicSessionMetric.textContent = String(state.publicStats.totalSessions);
   refs.publicUserMetric.textContent = String(state.publicStats.totalUsers);
+  if (refs.topAuthButton) {
+    refs.topAuthButton.textContent = isSignedIn ? "Open Workspace" : "Sign up / in";
+  }
+  if (refs.landingSignedMinutesMetric) {
+    refs.landingSignedMinutesMetric.textContent = String(state.stats.totalMinutes);
+  }
+  if (refs.landingSignedSessionMetric) {
+    refs.landingSignedSessionMetric.textContent = String(state.stats.totalSessions);
+  }
+  if (refs.landingSignedLiveMetric) {
+    refs.landingSignedLiveMetric.textContent = String(state.publicStats.totalUsers);
+  }
 
   refs.landingLeaderboard.innerHTML = state.leaderboards.landing.length
     ? state.leaderboards.landing.map((entry) => `
@@ -57,7 +71,7 @@ function renderLanding(state, refs) {
 
   // refs.landingUserName.textContent = firstName; // This element was removed from template
   refs.landingHeroTitle.textContent = `${firstName}, your next clean session is one click away.`;
-  refs.profilePanelName.textContent = state.auth.user.displayName || "FocusFlow";
+  refs.profilePanelName.textContent = state.auth.user.displayName || "Immersia";
   refs.profilePanelEmail.textContent = state.auth.user.email || "";
   refs.profilePanel.hidden = !state.ui.profileOpen;
 
@@ -77,6 +91,10 @@ function renderWorkspace(state, refs) {
   refs.mainApp.hidden = !showApp;
   refs.landingPage.hidden = showApp;
 
+  if (refs.ownerDashButton) {
+    refs.ownerDashButton.hidden = !showApp || state.auth.user?.uid !== OWNER_UID;
+  }
+
   if (!showApp) {
     return;
   }
@@ -84,7 +102,7 @@ function renderWorkspace(state, refs) {
   mountAvatar(refs.profileAvatar, state.auth.user, { sizeClass: "avatar--small" });
   mountAvatar(refs.profilePanelAvatar, state.auth.user);
   // refs.profileButtonName.textContent = getFirstName(state.auth.user.displayName || state.auth.user.email || "Workspace"); // Element removed from template
-  // refs.profilePanelName.textContent = state.auth.user.displayName || "FocusFlow"; // Element removed from template
+  // refs.profilePanelName.textContent = state.auth.user.displayName || "Immersia"; // Element removed from template
   // refs.profilePanelEmail.textContent = state.auth.user.email || ""; // Element removed from template
   refs.profilePanel.hidden = !state.ui.profileOpen;
   refs.workspaceStreakValue.textContent = String(state.stats.streak);
@@ -430,9 +448,11 @@ export function createRenderer(refs) {
     refs.quoteBar.textContent = state.ui.quote;
     document.title = state.route.view === "app" && state.timer.running
       ? `${refs.timerValue.textContent} | ${APP_TITLE}`
-      : "FocusFlow | Deep work that feels intentional";
+      : DEFAULT_TITLE;
     hydrateAvatarImages(refs.root);
     return state;
   };
 }
+
+
 

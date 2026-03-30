@@ -9,6 +9,7 @@ import { createRoomsController } from "../features/rooms/controller.js";
 import { createSessionsController } from "../features/sessions/controller.js";
 import { createStatsController } from "../features/stats/controller.js";
 import { createTimerController } from "../features/timer/controller.js";
+import { createLandingPreviewController } from "../features/landingDemo/controller.js";
 import { createStore } from "../store/createStore.js";
 import { createInitialState } from "../store/state.js";
 import { mountApp } from "../ui/dom.js";
@@ -44,6 +45,8 @@ export function bootstrapApp() {
     audio,
     feedback
   });
+  const landingPreview = createLandingPreviewController({ refs });
+
   const auth = createAuthController({
     store,
     repository,
@@ -128,6 +131,13 @@ export function bootstrapApp() {
       switch (action) {
         case "sign-in":
           auth.signIn();
+          break;
+        case "top-auth":
+          if (store.getState().auth.user) {
+            auth.openAppRoute();
+          } else {
+            auth.signIn();
+          }
           break;
         case "sign-out":
           auth.signOut();
@@ -327,6 +337,7 @@ export function bootstrapApp() {
 
   bindGlobalEvents();
   timer.bindAttentionTracking();
+  landingPreview.init();
 
   store.subscribe(render);
   render(store.getState());
@@ -336,4 +347,5 @@ export function bootstrapApp() {
   leaderboards.refreshPublicStats().catch(() => {});
   auth.init();
 }
+
 
