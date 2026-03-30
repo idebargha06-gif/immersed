@@ -302,6 +302,12 @@ export function bootstrapApp() {
       owner.loadOwnerRoom(event.target.value);
     });
 
+    refs.workspaceHostToggle?.addEventListener("change", () => {
+      if (refs.workspaceHostPanel) {
+        refs.workspaceHostPanel.hidden = !refs.workspaceHostToggle.checked;
+      }
+    });
+
     refs.volumeInput.addEventListener("input", (event) => {
       audio.setVolume(Number(event.target.value));
     });
@@ -352,6 +358,8 @@ export function bootstrapApp() {
   leaderboards.refreshPublicStats().catch(() => {});
   auth.init();
 }
+
+
 
 
 

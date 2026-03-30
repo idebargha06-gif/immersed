@@ -2848,3 +2848,63 @@ body[data-theme="dark"] .toast--error {
     margin: 0 auto;
   }
 }
+
+/* Presence semantics + workspace timer animation */
+.status-dot {
+  --pulse: rgba(34, 197, 94, 0.45);
+  box-shadow: 0 0 0 0 var(--pulse);
+}
+
+.status-dot--focused,
+.status-dot--live {
+  background: #22c55e;
+  --pulse: rgba(34, 197, 94, 0.45);
+}
+
+.status-dot--distracted {
+  background: #ef4444;
+  --pulse: rgba(239, 68, 68, 0.45);
+}
+
+.status-dot--idle {
+  background: #eab308;
+  --pulse: rgba(234, 179, 8, 0.45);
+}
+
+@keyframes presencePulse {
+  0% { transform: scale(0.94); box-shadow: 0 0 0 0 var(--pulse); }
+  70% { box-shadow: 0 0 0 10px rgba(0, 0, 0, 0); transform: scale(1); }
+  100% { transform: scale(0.94); box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+}
+
+.timer-ring.is-running {
+  animation: workspaceTimerFloat 2.4s ease-in-out infinite;
+}
+
+.timer-ring.is-running .timer-ring__progress {
+  filter: drop-shadow(0 0 7px rgba(47, 110, 87, 0.45));
+}
+
+@keyframes workspaceTimerFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.presence-item--detailed {
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: 6px;
+}
+
+.presence-item__primary {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.presence-item__meta {
+  color: var(--text-muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}

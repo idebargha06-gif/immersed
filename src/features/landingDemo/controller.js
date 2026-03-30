@@ -12,7 +12,7 @@ function statusLabel(status) {
   if (status === "idle") {
     return "Idle";
   }
-  return "Live";
+  return "Focused";
 }
 
 function statusClass(status) {
@@ -22,75 +22,36 @@ function statusClass(status) {
   if (status === "idle") {
     return "status-dot--idle";
   }
-  return "status-dot--live";
+  return "status-dot--focused";
 }
 
 export function createLandingPreviewController({ refs }) {
   const circleLength = 553;
   const durationSeconds = 25 * 60;
-  const panels = [
-    {
-      progress: refs.landingPreviewProgress,
-      timer: refs.landingPreviewTimer,
-      start: refs.landingPreviewStartButton,
-      stop: refs.landingPreviewStopButton,
-      reset: refs.landingPreviewResetButton,
-      statusDot: refs.landingPreviewStatusDot,
-      statusLabel: refs.landingPreviewStatusLabel,
-      distractions: refs.landingPreviewDistractions,
-      sessions: refs.landingPreviewSessionCount,
-      minutes: refs.landingPreviewFocusedMinutes,
-      presenceList: refs.landingPresenceList,
-      hostToggle: refs.landingHostToggle,
-      hostPanel: refs.landingHostPanel,
-      hostList: refs.landingHostList
-    },
-    {
-      progress: refs.workspacePreviewProgress,
-      timer: refs.workspacePreviewTimer,
-      start: refs.workspacePreviewStartButton,
-      stop: refs.workspacePreviewStopButton,
-      reset: refs.workspacePreviewResetButton,
-      statusDot: refs.workspacePreviewStatusDot,
-      statusLabel: refs.workspacePreviewStatusLabel,
-      distractions: refs.workspacePreviewDistractions,
-      sessions: refs.workspacePreviewSessionCount,
-      minutes: refs.workspacePreviewFocusedMinutes,
-      presenceList: refs.workspacePresenceList,
-      hostToggle: refs.workspaceHostToggle,
-      hostPanel: refs.workspaceHostPanel,
-      hostList: refs.workspaceHostList
-    }
-  ];
-
   let running = false;
   let remainingSeconds = durationSeconds;
   let distractions = 0;
   let sessionCount = 0;
   let minutesFocused = 0;
   let lastActivityAt = Date.now();
-  let userStatus = "live";
+  let userStatus = "focused";
   let hasRecordedIdle = false;
   let lastDistractionAt = 0;
 
   const participants = [
-    { id: "you", name: "You", status: "live", distractions: 0, isYou: true },
-    { id: "a", name: "Aria", status: "live", distractions: 0, isYou: false },
-    { id: "b", name: "Noah", status: "live", distractions: 0, isYou: false },
-    { id: "c", name: "Mila", status: "live", distractions: 0, isYou: false }
+    { id: "you", name: "You", status: "focused", distractions: 0, isYou: true },
+    { id: "a", name: "Aria", status: "focused", distractions: 0, isYou: false },
+    { id: "b", name: "Noah", status: "focused", distractions: 0, isYou: false },
+    { id: "c", name: "Mila", status: "focused", distractions: 0, isYou: false }
   ];
 
   let tickId = null;
   let idleId = null;
   let botId = null;
 
-  function getYou() {
-    return participants.find((participant) => participant.id === "you");
-  }
-
   function setUserStatus(nextStatus) {
     userStatus = nextStatus;
-    const you = getYou();
+    const you = participants.find((participant) => participant.id === "you");
     if (you) {
       you.status = nextStatus;
     }
@@ -104,25 +65,24 @@ export function createLandingPreviewController({ refs }) {
 
     lastDistractionAt = now;
     distractions += 1;
-    const you = getYou();
+    const you = participants.find((participant) => participant.id === "you");
     if (you) {
       you.distractions += 1;
       you.lastReason = reason;
     }
   }
 
-  function setButtons(panel) {
-    panel.start && (panel.start.disabled = running || remainingSeconds <= 0);
-    panel.stop && (panel.stop.disabled = !running);
-    panel.reset && (panel.reset.disabled = running && remainingSeconds === durationSeconds);
+  function updateButtons() {
+    refs.landingPreviewStartButton && (refs.landingPreviewStartButton.disabled = running || remainingSeconds <= 0);
+    refs.landingPreviewStopButton && (refs.landingPreviewStopButton.disabled = !running);
   }
 
-  function renderPresenceList(panel) {
-    if (!panel.presenceList) {
+  function renderParticipantList() {
+    if (!refs.landingPresenceList) {
       return;
     }
 
-    panel.presenceList.innerHTML = participants.map((participant) => `
+    refs.landingPresenceList.innerHTML = participants.map((participant) => `
       <li class="presence-item">
         <span class="status-dot ${statusClass(participant.status)}" aria-hidden="true"></span>
         <span>${participant.name}${participant.isYou ? " (you)" : ""}</span>
@@ -131,12 +91,12 @@ export function createLandingPreviewController({ refs }) {
     `).join("");
   }
 
-  function renderHostList(panel) {
-    if (!panel.hostList) {
+  function renderHostList() {
+    if (!refs.landingHostList) {
       return;
     }
 
-    panel.hostList.innerHTML = participants.map((participant) => `
+    refs.landingHostList.innerHTML = participants.map((participant) => `
       <li class="host-row">
         <span>${participant.name}</span>
         <strong>${participant.distractions}</strong>
@@ -144,41 +104,35 @@ export function createLandingPreviewController({ refs }) {
     `).join("");
   }
 
-  function renderPanel(panel) {
-    if (!panel.progress) {
-      return;
-    }
-
-    const progress = remainingSeconds / durationSeconds;
-    panel.timer && (panel.timer.textContent = formatClock(remainingSeconds));
-    panel.progress.style.strokeDasharray = `${circleLength}`;
-    panel.progress.style.strokeDashoffset = `${circleLength * (1 - progress)}`;
-    panel.progress.classList.toggle("preview__ring-progress--running", running);
-
-    const ring = panel.progress.closest(".preview__ring");
-    ring?.classList.toggle("is-running", running);
-
-    panel.distractions && (panel.distractions.textContent = String(distractions));
-    panel.sessions && (panel.sessions.textContent = String(sessionCount));
-    panel.minutes && (panel.minutes.textContent = String(minutesFocused));
-    if (panel.statusLabel) {
-      panel.statusLabel.textContent = statusLabel(userStatus);
-    }
-    if (panel.statusDot) {
-      panel.statusDot.className = `status-dot ${statusClass(userStatus)}`;
-    }
-
-    if (panel.hostPanel && panel.hostToggle) {
-      panel.hostPanel.hidden = !panel.hostToggle.checked;
-    }
-
-    renderPresenceList(panel);
-    renderHostList(panel);
-    setButtons(panel);
-  }
-
   function render() {
-    panels.forEach(renderPanel);
+    if (refs.landingPreviewTimer) {
+      refs.landingPreviewTimer.textContent = formatClock(remainingSeconds);
+    }
+
+    if (refs.landingPreviewProgress) {
+      const progress = remainingSeconds / durationSeconds;
+      refs.landingPreviewProgress.style.strokeDasharray = `${circleLength}`;
+      refs.landingPreviewProgress.style.strokeDashoffset = `${circleLength * (1 - progress)}`;
+    }
+
+    refs.landingPreviewDistractions && (refs.landingPreviewDistractions.textContent = String(distractions));
+    refs.landingPreviewSessionCount && (refs.landingPreviewSessionCount.textContent = String(sessionCount));
+    refs.landingPreviewFocusedMinutes && (refs.landingPreviewFocusedMinutes.textContent = String(minutesFocused));
+
+    if (refs.landingPreviewStatusLabel) {
+      refs.landingPreviewStatusLabel.textContent = statusLabel(userStatus);
+    }
+    if (refs.landingPreviewStatusDot) {
+      refs.landingPreviewStatusDot.className = `status-dot ${statusClass(userStatus)}`;
+    }
+
+    if (refs.landingHostPanel && refs.landingHostToggle) {
+      refs.landingHostPanel.hidden = !refs.landingHostToggle.checked;
+    }
+
+    renderParticipantList();
+    renderHostList();
+    updateButtons();
   }
 
   function stopTicker() {
@@ -186,16 +140,6 @@ export function createLandingPreviewController({ refs }) {
       window.clearInterval(tickId);
       tickId = null;
     }
-  }
-
-  function finalizeSessionFromCurrentTimer() {
-    const elapsedSeconds = Math.max(0, durationSeconds - remainingSeconds);
-    if (elapsedSeconds <= 0) {
-      return;
-    }
-
-    sessionCount += 1;
-    minutesFocused += Math.max(1, Math.floor(elapsedSeconds / 60));
   }
 
   function startSession() {
@@ -206,7 +150,7 @@ export function createLandingPreviewController({ refs }) {
     running = true;
     lastActivityAt = Date.now();
     hasRecordedIdle = false;
-    setUserStatus("live");
+    setUserStatus("focused");
 
     stopTicker();
     tickId = window.setInterval(() => {
@@ -220,7 +164,7 @@ export function createLandingPreviewController({ refs }) {
         stopTicker();
         sessionCount += 1;
         minutesFocused += Math.floor(durationSeconds / 60);
-        setUserStatus("live");
+        setUserStatus("focused");
       }
 
       render();
@@ -234,25 +178,23 @@ export function createLandingPreviewController({ refs }) {
       return;
     }
 
-    finalizeSessionFromCurrentTimer();
-    running = false;
-    stopTicker();
-    setUserStatus("live");
-    render();
-  }
+    const elapsedSeconds = Math.max(0, durationSeconds - remainingSeconds);
+    if (elapsedSeconds > 0) {
+      sessionCount += 1;
+      minutesFocused += Math.max(1, Math.floor(elapsedSeconds / 60));
+    }
 
-  function resetSession() {
     running = false;
     stopTicker();
-    remainingSeconds = durationSeconds;
-    setUserStatus("live");
+    remainingSeconds = 0;
+    setUserStatus("focused");
     render();
   }
 
   function markActive() {
     lastActivityAt = Date.now();
     if (running && (userStatus === "idle" || userStatus === "distracted")) {
-      setUserStatus("live");
+      setUserStatus("focused");
     }
     render();
   }
@@ -275,7 +217,7 @@ export function createLandingPreviewController({ refs }) {
     }
 
     if (running) {
-      setUserStatus("live");
+      setUserStatus("focused");
       render();
     }
   }
@@ -288,7 +230,7 @@ export function createLandingPreviewController({ refs }) {
 
       const roll = Math.random();
       if (roll < 0.65) {
-        participant.status = "live";
+        participant.status = "focused";
       } else if (roll < 0.85) {
         participant.status = "idle";
       } else {
@@ -301,12 +243,9 @@ export function createLandingPreviewController({ refs }) {
   }
 
   function bindEvents() {
-    panels.forEach((panel) => {
-      panel.start?.addEventListener("click", startSession);
-      panel.stop?.addEventListener("click", stopSession);
-      panel.reset?.addEventListener("click", resetSession);
-      panel.hostToggle?.addEventListener("change", render);
-    });
+    refs.landingPreviewStartButton?.addEventListener("click", startSession);
+    refs.landingPreviewStopButton?.addEventListener("click", stopSession);
+    refs.landingHostToggle?.addEventListener("change", render);
 
     ["mousemove", "keydown", "touchstart", "pointerdown"].forEach((eventName) => {
       window.addEventListener(eventName, markActive, { passive: true });
@@ -318,7 +257,7 @@ export function createLandingPreviewController({ refs }) {
 
     window.addEventListener("focus", () => {
       if (running) {
-        setUserStatus("live");
+        setUserStatus("focused");
         render();
       }
     });

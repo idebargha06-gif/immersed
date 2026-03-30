@@ -113,13 +113,7 @@ function renderWorkspace(state, refs) {
   refs.workspaceStreakBadge.hidden = false;
   refs.workspaceStreakBadge.dataset.active = state.stats.streak > 0 ? "true" : "false";
   refs.roomModeCountBadge.hidden = state.room.mode !== "room" || state.room.activeCount <= 0;
-  refs.roomModeCountBadge.textContent = String(state.room.activeCount);
-  if (refs.workspacePresenceDot) {
-    refs.workspacePresenceDot.className = `status-dot ${state.room.mode === "room" ? "status-dot--live" : "status-dot--distracted"}`;
-  }
-  if (refs.workspacePresenceButton) {
-    refs.workspacePresenceButton.setAttribute("aria-expanded", String(!refs.workspacePresencePanel?.hidden));
-  }
+  refs.roomModeCountBadge.textContent = String(state.room.activeCount);
 }
 
 function renderTimer(state, refs) {
@@ -135,6 +129,7 @@ function renderTimer(state, refs) {
   refs.timerProgress.style.strokeDashoffset = `${CIRCLE_LENGTH * (1 - progress)}`;
   refs.timerProgress.classList.toggle("timer-ring__progress--danger", state.timer.running && progress < 0.1);
   refs.timerRing.classList.toggle("session-starting", state.ui.focusPulse);
+  refs.timerRing.classList.toggle("is-running", state.timer.running);
   const roomLocked = state.room.mode === "room"
     && Boolean(state.room.currentRoomId)
     && Boolean(state.auth.user?.uid)
@@ -180,6 +175,86 @@ function renderRoom(state, refs) {
     : `<p class="empty-copy">Nobody else is in this room yet.</p>`;
 }
 
+function getPresenceState(participant) {
+  if (participant?.distractedAt) {
+    return { className: "status-dot--distracted", label: "Distracted" };
+  }
+  if (participant?.focusing) {
+    return { className: "status-dot--focused", label: "Focused" };
+  }
+  return { className: "status-dot--idle", label: "Idle" };
+}
+
+function renderPresenceDashboard(state, refs) {
+  const showApp = state.route.view === "app" && Boolean(state.auth.user);
+  if (!refs.workspacePresencePanel || !refs.workspacePresenceList) {
+    return;
+  }
+
+  if (!showApp) {
+    refs.workspacePresencePanel.hidden = true;
+    refs.workspacePresenceButton?.setAttribute("aria-expanded", "false");
+    return;
+  }
+
+  const isRoomMode = state.room.mode === "room";
+  const participants = isRoomMode ? state.room.participants : [];
+  const currentUserId = state.auth.user?.uid || "";
+  const me = participants.find((participant) => participant.uid === currentUserId);
+
+  if (refs.workspacePresenceDot) {
+    if (!isRoomMode) {
+      refs.workspacePresenceDot.className = "status-dot status-dot--distracted";
+    } else if (me) {
+      const presence = getPresenceState(me);
+      refs.workspacePresenceDot.className = `status-dot ${presence.className}`;
+    } else {
+      refs.workspacePresenceDot.className = "status-dot status-dot--focused";
+    }
+  }
+
+  refs.workspacePresenceList.innerHTML = participants.length
+    ? participants.map((participant) => {
+      const presence = getPresenceState(participant);
+      const name = participant.uid === currentUserId ? `${escapeHtml(participant.name)} (you)` : escapeHtml(participant.name);
+      return `
+        <li class="presence-item presence-item--detailed">
+          <div class="presence-item__primary">
+            <span class="status-dot ${presence.className}" aria-hidden="true"></span>
+            <span>${name}</span>
+            <strong>${presence.label}</strong>
+          </div>
+          <small class="presence-item__meta">Distractions: ${participant.distractionCount || 0}</small>
+        </li>
+      `;
+    }).join("")
+    : '<li class="presence-item presence-item--detailed"><div class="presence-item__primary"><span class="status-dot status-dot--idle" aria-hidden="true"></span><span>No one in room yet</span><strong>Idle</strong></div><small class="presence-item__meta">Switch to room mode to go live.</small></li>';
+
+  const isHost = isRoomMode && Boolean(state.auth.user?.uid) && state.room.ownerUid === state.auth.user.uid;
+  if (refs.workspaceHostToggleWrap) {
+    refs.workspaceHostToggleWrap.hidden = !isHost;
+  }
+  if (!isHost && refs.workspaceHostToggle) {
+    refs.workspaceHostToggle.checked = false;
+  }
+
+  if (refs.workspaceHostPanel) {
+    refs.workspaceHostPanel.hidden = !isHost || !refs.workspaceHostToggle?.checked;
+  }
+
+  if (refs.workspaceHostList) {
+    refs.workspaceHostList.innerHTML = isHost
+      ? participants.map((participant) => `
+        <li class="host-row">
+          <span>${escapeHtml(participant.name)}</span>
+          <strong>${participant.distractionCount || 0}</strong>
+        </li>
+      `).join("")
+      : "";
+  }
+
+  refs.workspacePresenceButton?.setAttribute("aria-expanded", String(!refs.workspacePresencePanel.hidden));
+}
 function renderAudio(state, refs) {
   refs.ambientTrackLabel.textContent = state.audio.trackLabel || "No track selected";
   refs.volumeInput.value = String(state.audio.volume);
@@ -447,6 +522,7 @@ export function createRenderer(refs) {
     renderWorkspace(state, refs);
     renderTimer(state, refs);
     renderRoom(state, refs);
+    renderPresenceDashboard(state, refs);
     renderAudio(state, refs);
     renderCalendar(state, refs);
     renderHistory(state, refs);
@@ -463,6 +539,15 @@ export function createRenderer(refs) {
     return state;
   };
 }
+
+
+
+
+
+
+
+
+
 
 
 
