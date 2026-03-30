@@ -2721,3 +2721,130 @@ body[data-theme="dark"] .toast--error {
     grid-template-columns: 1fr;
   }
 }
+
+/* Compact interactive preview + workspace live dashboard */
+.hero--marketing {
+  align-items: start;
+}
+
+.hero__preview {
+  max-width: 500px;
+}
+
+.preview__main {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.preview__ring--compact {
+  width: 148px;
+  height: 148px;
+  margin: 0;
+}
+
+.preview__side {
+  display: grid;
+  gap: 10px;
+}
+
+.preview__items--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.preview__items--compact .preview__item {
+  padding: 10px 12px;
+}
+
+.preview__items--compact .preview__item strong {
+  font-size: 1rem;
+}
+
+.preview__controls {
+  margin: 0;
+}
+
+.presence-list {
+  margin-top: 10px;
+  max-height: 144px;
+  overflow: auto;
+}
+
+.presence-item,
+.host-row {
+  padding: 8px 10px;
+}
+
+.preview__ring.is-running {
+  animation: timerFloat 2.6s ease-in-out infinite;
+}
+
+.preview__ring-progress--running {
+  filter: drop-shadow(0 0 6px rgba(47, 110, 87, 0.42));
+}
+
+.preview__ring.is-running .preview__ring-value {
+  animation: timerValuePulse 1.9s ease-in-out infinite;
+}
+
+@keyframes timerFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes timerValuePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.82; }
+}
+
+.presence-trigger {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.presence-trigger .status-dot {
+  margin-left: 0;
+}
+
+.page--app {
+  position: relative;
+}
+
+.presence-dropdown {
+  position: absolute;
+  top: 72px;
+  right: 0;
+  width: min(470px, calc(100vw - 24px));
+  z-index: 18;
+  padding: 16px;
+}
+
+.topbar__auth-button {
+  min-width: 104px;
+}
+
+@media (max-width: 900px) {
+  .preview__main,
+  .preview__items--compact {
+    grid-template-columns: 1fr;
+  }
+
+  .preview__ring--compact {
+    margin: 0 auto;
+  }
+
+  .presence-dropdown {
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+  }
+}

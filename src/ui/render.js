@@ -38,7 +38,8 @@ function renderLanding(state, refs) {
   refs.publicSessionMetric.textContent = String(state.publicStats.totalSessions);
   refs.publicUserMetric.textContent = String(state.publicStats.totalUsers);
   if (refs.topAuthButton) {
-    refs.topAuthButton.textContent = isSignedIn ? "Open Workspace" : "Sign up / in";
+    refs.topAuthButton.hidden = isSignedIn;
+    refs.topAuthButton.textContent = "Sign in";
   }
   if (refs.landingSignedMinutesMetric) {
     refs.landingSignedMinutesMetric.textContent = String(state.stats.totalMinutes);
@@ -90,6 +91,9 @@ function renderWorkspace(state, refs) {
   const showApp = state.route.view === "app" && Boolean(state.auth.user);
   refs.mainApp.hidden = !showApp;
   refs.landingPage.hidden = showApp;
+  if (refs.workspacePresencePanel) {
+    refs.workspacePresencePanel.hidden = !showApp || refs.workspacePresencePanel.hidden;
+  }
 
   if (refs.ownerDashButton) {
     refs.ownerDashButton.hidden = !showApp || state.auth.user?.uid !== OWNER_UID;
@@ -110,6 +114,12 @@ function renderWorkspace(state, refs) {
   refs.workspaceStreakBadge.dataset.active = state.stats.streak > 0 ? "true" : "false";
   refs.roomModeCountBadge.hidden = state.room.mode !== "room" || state.room.activeCount <= 0;
   refs.roomModeCountBadge.textContent = String(state.room.activeCount);
+  if (refs.workspacePresenceDot) {
+    refs.workspacePresenceDot.className = `status-dot ${state.room.mode === "room" ? "status-dot--live" : "status-dot--distracted"}`;
+  }
+  if (refs.workspacePresenceButton) {
+    refs.workspacePresenceButton.setAttribute("aria-expanded", String(!refs.workspacePresencePanel?.hidden));
+  }
 }
 
 function renderTimer(state, refs) {
@@ -453,6 +463,7 @@ export function createRenderer(refs) {
     return state;
   };
 }
+
 
 
 

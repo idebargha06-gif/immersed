@@ -56,6 +56,23 @@ export function mountApp(root) {
     landingHostToggle: getById(root, "landingHostToggle"),
     landingHostPanel: getById(root, "landingHostPanel"),
     landingHostList: getById(root, "landingHostList"),
+    workspacePresenceButton: getById(root, "workspacePresenceButton"),
+    workspacePresenceDot: getById(root, "workspacePresenceDot"),
+    workspacePresencePanel: getById(root, "workspacePresencePanel"),
+    workspaceHostToggle: getById(root, "workspaceHostToggle"),
+    workspaceHostPanel: getById(root, "workspaceHostPanel"),
+    workspaceHostList: getById(root, "workspaceHostList"),
+    workspacePresenceList: getById(root, "workspacePresenceList"),
+    workspacePreviewProgress: getById(root, "workspacePreviewProgress"),
+    workspacePreviewTimer: getById(root, "workspacePreviewTimer"),
+    workspacePreviewStartButton: getById(root, "workspacePreviewStartButton"),
+    workspacePreviewStopButton: getById(root, "workspacePreviewStopButton"),
+    workspacePreviewResetButton: getById(root, "workspacePreviewResetButton"),
+    workspacePreviewStatusDot: getById(root, "workspacePreviewStatusDot"),
+    workspacePreviewStatusLabel: getById(root, "workspacePreviewStatusLabel"),
+    workspacePreviewDistractions: getById(root, "workspacePreviewDistractions"),
+    workspacePreviewSessionCount: getById(root, "workspacePreviewSessionCount"),
+    workspacePreviewFocusedMinutes: getById(root, "workspacePreviewFocusedMinutes"),
     workspaceBanner: getById(root, "workspaceBanner"),
     quoteBar: getById(root, "quoteBar"),
     workspaceStreakBadge: getById(root, "workspaceStreakBadge"),
@@ -160,5 +177,6 @@ export function mountApp(root) {
     boardButtons: [...root.querySelectorAll("[data-board]")]
   };
 }
+
 
 

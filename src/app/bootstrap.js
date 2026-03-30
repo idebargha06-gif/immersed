@@ -132,13 +132,6 @@ export function bootstrapApp() {
         case "sign-in":
           auth.signIn();
           break;
-        case "top-auth":
-          if (store.getState().auth.user) {
-            auth.openAppRoute();
-          } else {
-            auth.signIn();
-          }
-          break;
         case "sign-out":
           auth.signOut();
           break;
@@ -171,6 +164,12 @@ export function bootstrapApp() {
           break;
         case "toggle-profile":
           profile.toggleProfile();
+          break;
+        case "toggle-presence-dashboard":
+          if (refs.workspacePresencePanel) {
+            refs.workspacePresencePanel.hidden = !refs.workspacePresencePanel.hidden;
+            refs.workspacePresenceButton?.setAttribute("aria-expanded", String(!refs.workspacePresencePanel.hidden));
+          }
           break;
         case "set-mode":
           await rooms.setMode(actionTarget.dataset.mode);
@@ -332,6 +331,12 @@ export function bootstrapApp() {
       if (!refs.ownerDashboard.hidden && clickedOwnerOverlay && !clickedOwnerButton) {
         owner.closeDashboard();
       }
+      const clickedPresenceButton = refs.workspacePresenceButton?.contains(event.target);
+      const clickedPresencePanel = refs.workspacePresencePanel?.contains(event.target);
+      if (refs.workspacePresencePanel && !refs.workspacePresencePanel.hidden && !clickedPresenceButton && !clickedPresencePanel) {
+        refs.workspacePresencePanel.hidden = true;
+        refs.workspacePresenceButton?.setAttribute("aria-expanded", "false");
+      }
     });
   }
 
@@ -347,5 +352,7 @@ export function bootstrapApp() {
   leaderboards.refreshPublicStats().catch(() => {});
   auth.init();
 }
+
+
 
 

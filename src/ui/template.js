@@ -27,7 +27,7 @@ export function createAppTemplate() {
             </div>
 
             <div class="topbar__right">
-              <button id="topAuthButton" class="button button--primary button--small topbar__auth-button" data-action="top-auth" type="button">Sign up / in</button>
+              <button id="topAuthButton" class="button button--primary button--small topbar__auth-button" data-action="sign-in" type="button">Sign in</button>
               <div id="landingAccountToolbar" class="account-toolbar" hidden>
                 <div id="landingStreakBadge" class="streak-chip" hidden>
                   <span class="streak-chip__flame" aria-hidden="true"></span>
@@ -78,34 +78,38 @@ export function createAppTemplate() {
                   <span>Host view</span>
                 </label>
               </div>
-              <div class="preview__ring">
-                <svg viewBox="0 0 200 200" class="preview__ring-svg" aria-hidden="true">
-                  <circle class="preview__ring-track" cx="100" cy="100" r="88"></circle>
-                  <circle id="landingPreviewProgress" class="preview__ring-progress" cx="100" cy="100" r="88"></circle>
-                </svg>
-                <div id="landingPreviewTimer" class="preview__ring-value">25:00</div>
-              </div>
-              <div class="button-row button-row--compact preview__controls">
-                <button id="landingPreviewStartButton" class="button button--primary button--small" type="button">Start</button>
-                <button id="landingPreviewStopButton" class="button button--ghost button--small" type="button">Stop</button>
-                <button id="landingPreviewResetButton" class="button button--ghost button--small" type="button">Reset</button>
-              </div>
-              <div class="preview__items">
-                <div class="preview__item">
-                  <span class="preview__item-label">Your status</span>
-                  <strong><span id="landingPreviewStatusDot" class="status-dot status-dot--live" aria-hidden="true"></span><span id="landingPreviewStatusLabel">Live</span></strong>
+              <div class="preview__main">
+                <div class="preview__ring preview__ring--compact">
+                  <svg viewBox="0 0 200 200" class="preview__ring-svg" aria-hidden="true">
+                    <circle class="preview__ring-track" cx="100" cy="100" r="88"></circle>
+                    <circle id="landingPreviewProgress" class="preview__ring-progress" cx="100" cy="100" r="88"></circle>
+                  </svg>
+                  <div id="landingPreviewTimer" class="preview__ring-value">25:00</div>
                 </div>
-                <div class="preview__item">
-                  <span class="preview__item-label">Distractions</span>
-                  <strong id="landingPreviewDistractions">0</strong>
-                </div>
-                <div class="preview__item">
-                  <span class="preview__item-label">Sessions done</span>
-                  <strong id="landingPreviewSessionCount">0</strong>
-                </div>
-                <div class="preview__item">
-                  <span class="preview__item-label">Minutes focused</span>
-                  <strong id="landingPreviewFocusedMinutes">0</strong>
+                <div class="preview__side">
+                  <div class="button-row button-row--compact preview__controls">
+                    <button id="landingPreviewStartButton" class="button button--primary button--small" type="button">Start</button>
+                    <button id="landingPreviewStopButton" class="button button--ghost button--small" type="button">Stop</button>
+                    <button id="landingPreviewResetButton" class="button button--ghost button--small" type="button">Reset</button>
+                  </div>
+                  <div class="preview__items preview__items--compact">
+                    <div class="preview__item">
+                      <span class="preview__item-label">Status</span>
+                      <strong><span id="landingPreviewStatusDot" class="status-dot status-dot--live" aria-hidden="true"></span><span id="landingPreviewStatusLabel">Live</span></strong>
+                    </div>
+                    <div class="preview__item">
+                      <span class="preview__item-label">Distractions</span>
+                      <strong id="landingPreviewDistractions">0</strong>
+                    </div>
+                    <div class="preview__item">
+                      <span class="preview__item-label">Sessions</span>
+                      <strong id="landingPreviewSessionCount">0</strong>
+                    </div>
+                    <div class="preview__item">
+                      <span class="preview__item-label">Minutes</span>
+                      <strong id="landingPreviewFocusedMinutes">0</strong>
+                    </div>
+                  </div>
                 </div>
               </div>
               <ul id="landingPresenceList" class="presence-list"></ul>
@@ -272,6 +276,10 @@ export function createAppTemplate() {
             </div>
 
             <div class="workspace-bar__right">
+              <button id="workspacePresenceButton" class="presence-trigger" data-action="toggle-presence-dashboard" type="button" aria-expanded="false" aria-controls="workspacePresencePanel">
+                <span id="workspacePresenceDot" class="status-dot status-dot--distracted" aria-hidden="true"></span>
+                <span class="sr-only">Toggle live presence dashboard</span>
+              </button>
               <div id="workspaceStreakBadge" class="streak-chip" hidden>
                 <span class="streak-chip__flame" aria-hidden="true"></span>
                 <div class="streak-chip__content">
@@ -286,6 +294,54 @@ export function createAppTemplate() {
           </header>
 
           <div id="workspaceBanner" class="workspace-banner" hidden></div>
+          <div id="workspacePresencePanel" class="presence-dropdown card" hidden>
+            <div class="preview__header">
+              <p class="preview__label">Live focus dashboard</p>
+              <label class="host-toggle" for="workspaceHostToggle">
+                <input id="workspaceHostToggle" type="checkbox">
+                <span>Host view</span>
+              </label>
+            </div>
+            <div class="preview__main">
+              <div class="preview__ring preview__ring--compact">
+                <svg viewBox="0 0 200 200" class="preview__ring-svg" aria-hidden="true">
+                  <circle class="preview__ring-track" cx="100" cy="100" r="88"></circle>
+                  <circle id="workspacePreviewProgress" class="preview__ring-progress" cx="100" cy="100" r="88"></circle>
+                </svg>
+                <div id="workspacePreviewTimer" class="preview__ring-value">25:00</div>
+              </div>
+              <div class="preview__side">
+                <div class="button-row button-row--compact preview__controls">
+                  <button id="workspacePreviewStartButton" class="button button--primary button--small" type="button">Start</button>
+                  <button id="workspacePreviewStopButton" class="button button--ghost button--small" type="button">Stop</button>
+                  <button id="workspacePreviewResetButton" class="button button--ghost button--small" type="button">Reset</button>
+                </div>
+                <div class="preview__items preview__items--compact">
+                  <div class="preview__item">
+                    <span class="preview__item-label">Status</span>
+                    <strong><span id="workspacePreviewStatusDot" class="status-dot status-dot--live" aria-hidden="true"></span><span id="workspacePreviewStatusLabel">Live</span></strong>
+                  </div>
+                  <div class="preview__item">
+                    <span class="preview__item-label">Distractions</span>
+                    <strong id="workspacePreviewDistractions">0</strong>
+                  </div>
+                  <div class="preview__item">
+                    <span class="preview__item-label">Sessions</span>
+                    <strong id="workspacePreviewSessionCount">0</strong>
+                  </div>
+                  <div class="preview__item">
+                    <span class="preview__item-label">Minutes</span>
+                    <strong id="workspacePreviewFocusedMinutes">0</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <ul id="workspacePresenceList" class="presence-list"></ul>
+            <div id="workspaceHostPanel" class="preview__host" hidden>
+              <p class="preview__item-label">Host dashboard: distraction counts</p>
+              <ul id="workspaceHostList" class="host-list"></ul>
+            </div>
+          </div>
           <p id="quoteBar" class="quote-bar"></p>
 
           <div class="workspace-grid">
@@ -698,6 +754,11 @@ export function createAppTemplate() {
     </div>
   `;
 }
+
+
+
+
+
 
 
 
