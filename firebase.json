@@ -1,20 +1,20 @@
-﻿{
-  hosting: {
-    public: dist,
-    ignore: [
-      firebase.json,
-      **/.*,
-      **/node_modules/**
- ],
- rewrites: [
- {
- source: /__/**,
- destination: /__/**
+{
+  "hosting": {
+    "public": "dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/__/**",
+        "destination": "/__/**"
       },
       {
-        source: **,
-        destination: /index.html
- }
- ]
- }
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
 }
