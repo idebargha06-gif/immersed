@@ -23,7 +23,7 @@ import {
 
 const firebaseConfig = {
   apiKey: "AIzaSyB9wLp_Z2PzCQgtdTjwoQZGw2tSC8tgNNY",
-  authDomain: "focus-app-3c749.firebaseapp.com",
+  authDomain: "getimmersed.in",
   projectId: "focus-app-3c749",
   storageBucket: "focus-app-3c749.appspot.com",
   messagingSenderId: "583246239661",
