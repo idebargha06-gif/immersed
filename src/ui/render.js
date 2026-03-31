@@ -72,7 +72,7 @@ function renderLanding(state, refs) {
 
   // refs.landingUserName.textContent = firstName; // This element was removed from template
   refs.landingHeroTitle.textContent = `${firstName}, your next clean session is one click away.`;
-  refs.profilePanelName.textContent = state.auth.user.displayName || "Immersia";
+  refs.profilePanelName.textContent = state.auth.user.displayName || "Immersed";
   refs.profilePanelEmail.textContent = state.auth.user.email || "";
   refs.profilePanel.hidden = !state.ui.profileOpen;
 
@@ -106,14 +106,15 @@ function renderWorkspace(state, refs) {
   mountAvatar(refs.profileAvatar, state.auth.user, { sizeClass: "avatar--small" });
   mountAvatar(refs.profilePanelAvatar, state.auth.user);
   // refs.profileButtonName.textContent = getFirstName(state.auth.user.displayName || state.auth.user.email || "Workspace"); // Element removed from template
-  // refs.profilePanelName.textContent = state.auth.user.displayName || "Immersia"; // Element removed from template
+  // refs.profilePanelName.textContent = state.auth.user.displayName || "Immersed"; // Element removed from template
   // refs.profilePanelEmail.textContent = state.auth.user.email || ""; // Element removed from template
   refs.profilePanel.hidden = !state.ui.profileOpen;
   refs.workspaceStreakValue.textContent = String(state.stats.streak);
   refs.workspaceStreakBadge.hidden = false;
   refs.workspaceStreakBadge.dataset.active = state.stats.streak > 0 ? "true" : "false";
   refs.roomModeCountBadge.hidden = state.room.mode !== "room" || state.room.activeCount <= 0;
-  refs.roomModeCountBadge.textContent = String(state.room.activeCount);
+  refs.roomModeCountBadge.textContent = String(state.room.activeCount);
+
 }
 
 function renderTimer(state, refs) {

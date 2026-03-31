@@ -20,8 +20,8 @@ export function createAppTemplate() {
           <header class="topbar">
             <div class="topbar__left">
               <button class="brand brand--button" data-action="go-landing" type="button">
-                <img src="/icon-512.png" alt="Immersia" class="brand__logo">
-                <span class="brand__text">Immersia</span>
+                <img src="/icon-512.png" alt="Immersed" class="brand__logo">
+                <span class="brand__text">Immersed</span>
               </button>
 
             </div>
@@ -48,7 +48,7 @@ export function createAppTemplate() {
               <p class="eyebrow">Measured focus for ambitious work</p>
               <h1 class="hero__title">A focus ritual with live momentum, ambient depth, and meaningful progress.</h1>
               <p class="hero__body">
-                Immersia blends timed sessions, live rooms, ambient sound, and distraction-aware signals into a calm space for deep, deliberate work.
+                Immersed blends timed sessions, live rooms, ambient sound, and distraction-aware signals into a calm space for deep, deliberate work.
               </p>
               <div class="hero__actions hero__actions--landing">
                 <button class="button button--primary" data-action="sign-in" type="button">Start with Google</button>
@@ -232,9 +232,9 @@ export function createAppTemplate() {
             <div class="landing-footer__top">
               <div class="landing-footer__brand">
                 <div class="landing-footer__identity">
-                  <img src="/icon-512.png" alt="Immersia" class="brand__logo">
+                  <img src="/icon-512.png" alt="Immersed" class="brand__logo">
                   <div>
-                    <strong>Immersia</strong>
+                    <strong>Immersed</strong>
                     <p>Measured presence for meaningful work.</p>
                   </div>
                 </div>
@@ -256,7 +256,7 @@ export function createAppTemplate() {
               </div>
             </div>
             <div class="landing-footer__bottom">
-              <p>&copy; 2026 Immersia. Always live <span class="status-dot status-dot--live" aria-hidden="true"></span></p>
+              <p>&copy; 2026 Immersed. Always live <span class="status-dot status-dot--live" aria-hidden="true"></span></p>
               <div class="landing-footer__legal">
                 <a href="#landingPage">Privacy policy</a>
                 <a href="#landingPage">Terms</a>
@@ -270,8 +270,8 @@ export function createAppTemplate() {
           <header class="workspace-bar">
             <div class="workspace-bar__left">
               <button class="brand brand--button" data-action="go-landing" type="button">
-                <img src="/icon-512.png" alt="Immersia" class="brand__logo">
-                <span class="brand__text">Immersia</span>
+                <img src="/icon-512.png" alt="Immersed" class="brand__logo">
+                <span class="brand__text">Immersed</span>
               </button>
             </div>
 
@@ -627,7 +627,7 @@ export function createAppTemplate() {
               <div class="profile-panel__identity">
                 <span id="profilePanelAvatar" class="avatar"></span>
                 <div>
-                  <strong id="profilePanelName">Immersia</strong>
+                  <strong id="profilePanelName">Immersed</strong>
                   <p id="profilePanelEmail" class="support-text"></p>
                 </div>
               </div>

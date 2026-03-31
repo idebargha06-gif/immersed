@@ -35,11 +35,11 @@ export function getNextPomodoroPhase(currentPhase, currentCycle) {
 
 export function buildDocumentTitle({ running, timeLeft }) {
   if (!running) {
-    return "Immersia | Live focus rooms for meaningful progress";
+    return "Immersed | Live focus rooms for meaningful progress";
   }
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")} | Immersia`;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")} | Immersed`;
 }
 

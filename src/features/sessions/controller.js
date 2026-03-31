@@ -174,7 +174,7 @@ export function createSessionsController({
 
     if (state.ui.notificationsEnabled && "Notification" in window && Notification.permission === "granted") {
       try {
-        new Notification("Immersia session ready", {
+        new Notification("Immersed session ready", {
           body: `${result.score} points earned in ${Math.floor(result.timeSpent / 60)}m ${result.timeSpent % 60}s.`
         });
       } catch (error) {
@@ -291,20 +291,20 @@ export function createSessionsController({
 
     const appUrl = window.location.origin;
     const text = [
-      "Immersia",
+      "Immersed",
       `Goal: ${store.getState().session.focusGoal || "Deep work"}`,
       `Time: ${Math.floor(result.timeSpent / 60)}m ${result.timeSpent % 60}s`,
       `Distractions: ${result.distractions}`,
       `Score: ${result.score} pts`,
       "",
-      "Join me on Immersia and start your next clean focus session:",
+      "Join me on Immersed and start your next clean focus session:",
       appUrl
     ].join("\n");
 
     try {
       if (navigator.share) {
         await navigator.share({
-          title: "Immersia session",
+          title: "Immersed session",
           text,
           url: appUrl
         });
