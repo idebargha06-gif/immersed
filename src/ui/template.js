@@ -79,12 +79,16 @@ export function createAppTemplate() {
                 </label>
               </div>
               <div class="preview__main">
-                <div class="preview__ring preview__ring--compact">
+                <div id="landingPreviewRing" class="preview__ring preview__ring--compact">
                   <svg viewBox="0 0 200 200" class="preview__ring-svg" aria-hidden="true">
                     <circle class="preview__ring-track" cx="100" cy="100" r="88"></circle>
                     <circle id="landingPreviewProgress" class="preview__ring-progress" cx="100" cy="100" r="88"></circle>
                   </svg>
-                  <div id="landingPreviewTimer" class="preview__ring-value">25:00</div>
+                  <div class="preview__ring-content">
+                    <span id="landingPreviewPhase" class="preview__ring-phase">Ready</span>
+                    <strong id="landingPreviewTimer" class="preview__ring-value">25:00</strong>
+                    <span id="landingPreviewPercent" class="preview__ring-percent">100%</span>
+                  </div>
                 </div>
                 <div class="preview__side">
                   <div class="button-row button-row--compact preview__controls">
@@ -258,8 +262,8 @@ export function createAppTemplate() {
             <div class="landing-footer__bottom">
               <p>&copy; 2026 Immersed. Always live <span class="status-dot status-dot--live" aria-hidden="true"></span></p>
               <div class="landing-footer__legal">
-                <a href="#landingPage">Privacy policy</a>
-                <a href="#landingPage">Terms</a>
+                <a href="/privacy-policy.html">Privacy policy</a>
+                <a href="/terms-of-service.html">Terms</a>
                 <a href="#landingPage">FAQ</a>
               </div>
             </div>

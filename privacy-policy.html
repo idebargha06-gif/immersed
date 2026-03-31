@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - Immersed</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,700;1,600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/styles/main.css">
+  <style>
+    .legal-page {
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    .legal-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: var(--surface);
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-soft);
+      padding: 48px;
+    }
+    .legal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 40px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .legal-header__brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .legal-header__logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+    }
+    .legal-header__brand strong {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .legal-header__back {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 200ms ease;
+    }
+    .legal-header__back:hover {
+      background: var(--accent-wash);
+      border-color: var(--accent-strong);
+    }
+    .legal-title {
+      font-family: var(--font-display);
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+    .legal-updated {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+    .legal-section {
+      margin-bottom: 32px;
+    }
+    .legal-section h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: var(--accent-strong);
+    }
+    .legal-section p {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+    .legal-section ul {
+      margin: 12px 0;
+      padding-left: 24px;
+    }
+    .legal-section li {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .legal-section strong {
+      font-weight: 600;
+    }
+    .legal-footer {
+      margin-top: 48px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+    .legal-footer a {
+      color: var(--accent-strong);
+      font-weight: 600;
+    }
+    .legal-footer a:hover {
+      text-decoration: underline;
+    }
+    @media (max-width: 720px) {
+      .legal-container {
+        padding: 24px;
+      }
+      .legal-title {
+        font-size: 26px;
+      }
+      .legal-header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="legal-page">
+    <div class="legal-container">
+      <header class="legal-header">
+        <a href="/" class="legal-header__brand">
+          <img src="/icon-512.png" alt="Immersed" class="legal-header__logo">
+          <strong>Immersed</strong>
+        </a>
+        <a href="/" class="legal-header__back">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Back to home
+        </a>
+      </header>
+
+      <h1 class="legal-title">Privacy Policy</h1>
+      <p class="legal-updated">Last updated: April 1, 2026</p>
+
+      <div class="legal-section">
+        <h2>1. Introduction</h2>
+        <p>Welcome to Immersed. We respect your privacy and are committed to protecting your personal data. This privacy policy explains how we collect, use, and safeguard your information when you use our focus and productivity application.</p>
+      </div>
+
+      <div class="legal-section">
+        <h2>2. Information We Collect</h2>
+        <p>We collect the following types of information:</p>
+        <ul>
+          <li><strong>Account Information:</strong> Email address, name, and profile information when you sign up via Google authentication.</li>
+          <li><strong>Usage Data:</strong> Focus session duration, session counts, and productivity metrics to help track your progress.</li>
+          <li><strong>Device Information:</strong> Browser type, operating system, and device identifiers for service optimization.</li>
+          <li><strong>Room Activity:</strong> When using focus rooms, we store room participation data to facilitate collaboration features.</li>
+        </ul>
+      </div>
+
+      <div class="legal-section">
+        <h2>3. How We Use Your Information</h2>
+        <p>Your information is used to:</p>
+        <ul>
+          <li>Provide and maintain our focus tracking and productivity services</li>
+          <li>Display leaderboards and global statistics (using anonymized data)</li>
+          <li>Enable real-time collaboration in focus rooms</li>
+          <li>Improve our application and user experience</li>
+          <li>Send occasional updates about new features (only with your consent)</li>
+        </ul>
+      </div>
+
+      <div class="legal-section">
+        <h2>4. Data Storage and Security</h2>
+        <p>We use Firebase for secure data storage. Your data is encrypted in transit and at rest. We implement industry-standard security measures including:</p>
+        <ul>
+          <li>Firebase Authentication with OAuth 2.0</li>
+          <li>Firestore security rules protecting user data</li>
+          <li>Regular security audits and updates</li>
+        </ul>
+      </div>
+
+      <div class="legal-section">
+        <h2>5. Data Sharing</h2>
+        <p>We do not sell your personal data. We only share data with:</p>
+        <ul>
+          <li>Service providers (Firebase/Google) necessary to operate our application</li>
+          <li>Other room participants when you join a public focus room (display name and focus status only)</li>
+        </ul>
+      </div>
+
+      <div class="legal-section">
+        <h2>6. Your Rights</h2>
+        <p>You have the right to:</p>
+        <ul>
+          <li>Access and export your data</li>
+          <li>Request deletion of your account and associated data</li>
+          <li>Update your profile information</li>
+          <li>Opt out of non-essential communications</li>
+        </ul>
+      </div>
+
+      <div class="legal-section">
+        <h2>7. Cookies and Local Storage</h2>
+        <p>We use essential cookies and local storage to maintain your session and preferences. This includes theme settings and authentication tokens. We do not use tracking cookies for advertising purposes.</p>
+      </div>
+
+      <div class="legal-section">
+        <h2>8. Changes to This Policy</h2>
+        <p>We may update this privacy policy from time to time. We will notify you of any changes by posting the new policy on this page and updating the "Last updated" date.</p>
+      </div>
+
+      <div class="legal-section">
+        <h2>9. Contact Us</h2>
+        <p>If you have any questions about this privacy policy or our data practices, please contact us at support@getimmersed.in</p>
+      </div>
+
+      <footer class="legal-footer">
+        <span>&copy; 2026 Immersed. All rights reserved.</span>
+        <div>
+          <a href="/privacy-policy.html">Privacy</a>
+          <span style="margin: 0 8px;">·</span>
+          <a href="/terms-of-service.html">Terms</a>
+        </div>
+      </footer>
+    </div>
+  </div>
+</body>
+</html>

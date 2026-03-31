@@ -113,6 +113,20 @@ export function createLandingPreviewController({ refs }) {
       const progress = remainingSeconds / durationSeconds;
       refs.landingPreviewProgress.style.strokeDasharray = `${circleLength}`;
       refs.landingPreviewProgress.style.strokeDashoffset = `${circleLength * (1 - progress)}`;
+      refs.landingPreviewProgress.classList.toggle("preview__ring-progress--running", running);
+    }
+
+    if (refs.landingPreviewRing) {
+      refs.landingPreviewRing.classList.toggle("is-running", running);
+    }
+
+    if (refs.landingPreviewPhase) {
+      refs.landingPreviewPhase.textContent = running ? "IN PROGRESS" : "Ready";
+    }
+
+    if (refs.landingPreviewPercent) {
+      const percent = Math.round((remainingSeconds / durationSeconds) * 100);
+      refs.landingPreviewPercent.textContent = running ? `${percent}%` : "100%";
     }
 
     refs.landingPreviewDistractions && (refs.landingPreviewDistractions.textContent = String(distractions));
@@ -151,6 +165,14 @@ export function createLandingPreviewController({ refs }) {
     lastActivityAt = Date.now();
     hasRecordedIdle = false;
     setUserStatus("focused");
+
+    // Trigger green pulse animation
+    if (refs.landingPreviewRing) {
+      refs.landingPreviewRing.classList.add("session-starting");
+      setTimeout(() => {
+        refs.landingPreviewRing?.classList.remove("session-starting");
+      }, 600);
+    }
 
     stopTicker();
     tickId = window.setInterval(() => {

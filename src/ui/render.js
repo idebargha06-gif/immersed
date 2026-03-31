@@ -42,10 +42,10 @@ function renderLanding(state, refs) {
     refs.topAuthButton.textContent = "Sign in";
   }
   if (refs.landingSignedMinutesMetric) {
-    refs.landingSignedMinutesMetric.textContent = String(state.stats.totalMinutes);
+    refs.landingSignedMinutesMetric.textContent = String(state.publicStats.totalMinutes);
   }
   if (refs.landingSignedSessionMetric) {
-    refs.landingSignedSessionMetric.textContent = String(state.stats.totalSessions);
+    refs.landingSignedSessionMetric.textContent = String(state.publicStats.totalSessions);
   }
   if (refs.landingSignedLiveMetric) {
     refs.landingSignedLiveMetric.textContent = String(state.publicStats.totalUsers);
@@ -205,7 +205,17 @@ function renderPresenceDashboard(state, refs) {
 
   if (refs.workspacePresenceDot) {
     if (!isRoomMode) {
-      refs.workspacePresenceDot.className = "status-dot status-dot--distracted";
+      // Solo mode: determine status from timer state
+      const isRunning = state.timer.running;
+      const isDistracted = state.timer.blurStartedAt || state.timer.distractionReason;
+      
+      if (!isRunning) {
+        refs.workspacePresenceDot.className = "status-dot status-dot--idle";
+      } else if (isDistracted) {
+        refs.workspacePresenceDot.className = "status-dot status-dot--distracted";
+      } else {
+        refs.workspacePresenceDot.className = "status-dot status-dot--focused";
+      }
     } else if (me) {
       const presence = getPresenceState(me);
       refs.workspacePresenceDot.className = `status-dot ${presence.className}`;
