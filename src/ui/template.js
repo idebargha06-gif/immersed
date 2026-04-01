@@ -48,7 +48,7 @@ export function createAppTemplate() {
           <section id="landingLoggedOut" class="hero hero--marketing">
             <div class="hero__copy">
               <p class="eyebrow">Measured focus for ambitious work</p>
-              <h1 class="hero__title">A focus ritual with live momentum, ambient depth, and meaningful progress.</h1>
+              <h2 class="hero__title">A focus ritual with live momentum, ambient depth, and meaningful progress.</h2>
               <p class="hero__body">
                 Immersed blends timed sessions, live rooms, ambient sound, and distraction-aware signals into a calm space for deep, deliberate work.
               </p>
@@ -131,7 +131,7 @@ export function createAppTemplate() {
               <div class="member-identity">
                 <div>
                   <p class="eyebrow">Welcome back</p>
-                  <h1 id="landingHeroTitle" class="hero__title">Your next clean session is one click away.</h1>
+                  <h2 id="landingHeroTitle" class="hero__title">Your next clean session is one click away.</h2>
                 </div>
               </div>
               <p id="landingMemberMessage" class="hero__body">Your recent progress is ready. Step back into the workspace when you are.</p>
