@@ -430,7 +430,16 @@ function renderSummary(state, refs) {
   refs.saveStateBadge.className = `status-badge status-badge--${state.session.saveState}`;
 
   const sessionSeconds = result.timeSpent || 0;
-  const distractionCount = result.realDistractions ?? result.distractions ?? 0;
+  
+  // Calculate distraction count - in multi-tab mode, context switches after 5 count as distractions
+  const isMultiTabMode = result.tabMode === "multitab";
+  const baseDistractions = result.realDistractions ?? result.distractions ?? 0;
+  const contextSwitches = result.contextSwitches ?? 0;
+  let distractionCount = baseDistractions;
+  
+  if (isMultiTabMode && contextSwitches > 5) {
+    distractionCount = baseDistractions + (contextSwitches - 5);
+  }
   
   // Handle short session vs normal session display
   if (sessionSeconds < 60) {
@@ -476,15 +485,30 @@ function renderSummary(state, refs) {
       }
     }
     
-    // Simple distraction log
-    refs.distractionLog.innerHTML = result.distractionLog?.length
-      ? result.distractionLog.map((item) => `
+    // Dynamic distraction log based on tab mode
+    const hasDistractions = result.distractionLog?.length > 0;
+    const hasContextSwitches = result.contextSwitchLog?.length > 0;
+    
+    if (hasDistractions) {
+      // Show real distractions
+      refs.distractionLog.innerHTML = result.distractionLog.map((item) => `
         <div class="log-row">
           <span>${escapeHtml(item.reason)}</span>
           <strong>${item.duration}s / -${item.penalty}</strong>
         </div>
-      `).join("")
-      : `<div class="log-row log-row--empty">No distractions recorded.</div>`;
+      `).join("");
+    } else if (isMultiTabMode && hasContextSwitches) {
+      // Multi-tab mode: show context switches
+      refs.distractionLog.innerHTML = result.contextSwitchLog.map((item, index) => `
+        <div class="log-row${index < 5 ? '' : ' log-row--penalty'}">
+          <span>${escapeHtml(item.reason)} ${index < 5 ? '(free)' : '(counts as distraction)'}</span>
+          <strong>${item.duration}s / -${item.penalty}</strong>
+        </div>
+      `).join("");
+    } else {
+      // No distractions recorded
+      refs.distractionLog.innerHTML = `<div class="log-row log-row--empty">${isMultiTabMode ? 'No distractions recorded. First 5 tab switches are free.' : 'No distractions recorded.'}</div>`;
+    }
   }
 }
 
