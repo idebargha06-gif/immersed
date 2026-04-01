@@ -6,12 +6,33 @@ import {
   DAY_LABELS,
   FEEDBACK_POOLS,
   SESSION_MODES,
-  OWNER_UID
+  OWNER_UID,
+  REAL_DISTRACTION_PENALTY,
+  CONTEXT_SWITCH_PENALTY,
+  CONTEXT_SWITCH_FREE_LIMIT,
+  IDLE_PENALTY
 } from "../utils/constants.js";
 import { createAvatarMarkup, hydrateAvatarImages, mountAvatar } from "../utils/avatar.js";
 import { formatMonthLabel, getMonthGrid, getMonthKey, getTodayIsoDay } from "../utils/date.js";
 import { escapeHtml, formatClock, formatClockWithHours, formatCompactMinutes, formatHoursFromMinutes, formatTimeAgo, getFirstName, pluralize } from "../utils/format.js";
-import { calculateFocusPercentage, getFeedbackBucket, getLevelInfo } from "../utils/scoring.js";
+import { getFeedbackBucket, getLevelInfo } from "../utils/scoring.js";
+
+function getScoringDescription(sessionMode) {
+  // Base penalties from new scoring system
+  const distractionPenalty = REAL_DISTRACTION_PENALTY;
+  const idlePenalty = IDLE_PENALTY;
+  
+  // Mode-specific multiplier
+  switch (sessionMode) {
+    case "deep":
+      return `Strict penalties: -${distractionPenalty * 2} per distraction, -${idlePenalty * 2} idle. Context switches: first ${CONTEXT_SWITCH_FREE_LIMIT} free, then -${CONTEXT_SWITCH_PENALTY * 2} each.`;
+    case "sprint":
+      return `Light penalties: -${Math.floor(distractionPenalty / 2)} per distraction, -${Math.floor(idlePenalty / 2)} idle. Context switches: first ${CONTEXT_SWITCH_FREE_LIMIT} free, then -${CONTEXT_SWITCH_PENALTY} each.`;
+    case "normal":
+    default:
+      return `Standard penalties: -${distractionPenalty} per distraction, -${idlePenalty} idle. Context switches: first ${CONTEXT_SWITCH_FREE_LIMIT} free, then -${CONTEXT_SWITCH_PENALTY} each.`;
+  }
+}
 
 function renderToasts(toasts, refs) {
   refs.toastStack.innerHTML = toasts.map((toast) => `
@@ -150,7 +171,7 @@ function renderTimer(state, refs) {
     button.classList.toggle("is-active", Number(button.dataset.duration) === state.timer.selectedDuration);
   });
   refs.pomodoroButton.classList.toggle("is-active", state.timer.pomodoroEnabled);
-  refs.scorePenaltyLabel.textContent = `Penalty: -${SESSION_MODES[state.timer.sessionMode].penalty} per distraction, minimum score 0.`;
+  refs.scorePenaltyLabel.textContent = getScoringDescription(state.timer.sessionMode);
   refs.sessionModeDescription.textContent = SESSION_MODES[state.timer.sessionMode].description;
 }
 
@@ -235,7 +256,6 @@ function renderPresenceDashboard(state, refs) {
             <span>${name}</span>
             <strong>${presence.label}</strong>
           </div>
-          <small class="presence-item__meta">Distractions: ${participant.distractionCount || 0}</small>
         </li>
       `;
     }).join("")
@@ -405,22 +425,67 @@ function renderSummary(state, refs) {
 
   refs.summaryHeadline.textContent = result.completed ? "Session complete" : "Session stopped";
   refs.summaryTimeValue.textContent = formatClock(result.timeSpent);
-  refs.summaryDistractionValue.textContent = String(result.distractions);
   refs.summaryScoreValue.textContent = String(result.score);
-  refs.summaryFocusValue.textContent = `${result.focusPercentage ?? calculateFocusPercentage(result.timeSpent, result.penaltyTotal)}%`;
   refs.saveStateBadge.textContent = state.session.saveState;
   refs.saveStateBadge.className = `status-badge status-badge--${state.session.saveState}`;
 
-  const bucket = getFeedbackBucket(result.distractions);
-  refs.sessionFeedback.textContent = FEEDBACK_POOLS[bucket][0];
-  refs.distractionLog.innerHTML = result.distractionLog.length
-    ? result.distractionLog.map((item) => `
-      <div class="log-row">
-        <span>${escapeHtml(item.reason)}</span>
-        <strong>${item.duration}s / -${item.penalty}</strong>
-      </div>
-    `).join("")
-    : `<div class="log-row log-row--empty">No distractions recorded.</div>`;
+  const sessionSeconds = result.timeSpent || 0;
+  const distractionCount = result.realDistractions ?? result.distractions ?? 0;
+  
+  // Handle short session vs normal session display
+  if (sessionSeconds < 60) {
+    // Short session: hide distractions and focus cards, show notice
+    if (refs.summaryDistractionsCard) refs.summaryDistractionsCard.hidden = true;
+    if (refs.summaryFocusCard) refs.summaryFocusCard.hidden = true;
+    if (refs.shortSessionNotice) refs.shortSessionNotice.hidden = false;
+    
+    // Simple feedback for short sessions
+    refs.sessionFeedback.textContent = "Short session. Try focusing for at least 1 minute.";
+    
+    // Hide distraction log for short sessions
+    refs.distractionLog.hidden = true;
+  } else {
+    // Normal session: show all metrics, hide notice
+    if (refs.summaryDistractionsCard) {
+      refs.summaryDistractionsCard.hidden = false;
+      refs.summaryDistractionValue.textContent = String(distractionCount);
+    }
+    if (refs.summaryFocusCard) {
+      refs.summaryFocusCard.hidden = false;
+      const efficiency = result.efficiency ?? result.focusPercentage ?? 0;
+      refs.summaryFocusValue.textContent = `${efficiency}%`;
+      refs.summaryFocusValue.style.color = "";
+    }
+    if (refs.shortSessionNotice) refs.shortSessionNotice.hidden = true;
+    refs.distractionLog.hidden = false;
+    
+    // Time-based feedback for sessions >= 60 seconds
+    if (sessionSeconds < 300) {
+      // 1-5 minutes
+      refs.sessionFeedback.textContent = "Good start. Build longer focus sessions.";
+    } else {
+      // 5+ minutes
+      if (distractionCount === 0) {
+        refs.sessionFeedback.textContent = "Strong focus. Keep it consistent.";
+      } else if (distractionCount === 1) {
+        refs.sessionFeedback.textContent = "Strong session. One distraction, but you stayed with the work.";
+      } else if (distractionCount <= 3) {
+        refs.sessionFeedback.textContent = "Good effort. A few distractions, but you kept going.";
+      } else {
+        refs.sessionFeedback.textContent = "Tough session. Consider trying single-tab mode for deeper focus.";
+      }
+    }
+    
+    // Simple distraction log
+    refs.distractionLog.innerHTML = result.distractionLog?.length
+      ? result.distractionLog.map((item) => `
+        <div class="log-row">
+          <span>${escapeHtml(item.reason)}</span>
+          <strong>${item.duration}s / -${item.penalty}</strong>
+        </div>
+      `).join("")
+      : `<div class="log-row log-row--empty">No distractions recorded.</div>`;
+  }
 }
 
 function renderPanels(state, refs) {
@@ -467,16 +532,23 @@ function renderOwnerDashboard(state, refs) {
 
       return `
         <article class="owner-card ${status.className}">
+          <div class="meta-grid">
+            <article class="meta-card">
+              <span class="meta-card__label">Scoring</span>
+              <strong id="scoreRuleLabel">+10 points per minute</strong>
+              <p id="scorePenaltyLabel" class="meta-card__body"></p>
+            </article>
+          </div>
+          <div class="owner-card__meta">
+            <span class="owner-card__badge${participant.distractionCount > 0 ? ' owner-card__badge--alert' : ''}">${participant.distractionCount} distractions</span>
+            <strong>${elapsedSeconds ? formatClockWithHours(elapsedSeconds) : "00:00"}</strong>
+          </div>
           <div class="owner-card__header">
             ${createAvatarMarkup(participant)}
             <div>
               <strong>${escapeHtml(participant.name)}</strong>
               <span class="owner-status-pill ${status.className}">${status.label}</span>
             </div>
-          </div>
-          <div class="owner-card__meta">
-            <span class="owner-card__badge${participant.distractionCount > 0 ? ' owner-card__badge--alert' : ''}">${participant.distractionCount} distractions</span>
-            <strong>${elapsedSeconds ? formatClockWithHours(elapsedSeconds) : "00:00"}</strong>
           </div>
           <p class="owner-card__subtext">${participant.leftAt ? `Left ${formatTimeAgo(participant.leftAt, state.ui.ownerNow)}` : participant.awayDuration ? `Away ${participant.awayDuration}s` : "Listening for movement"}</p>
         </article>
@@ -518,16 +590,29 @@ function renderTheme(state, refs) {
   if (refs.notificationLabel) {
     refs.notificationLabel.textContent = state.ui.notificationsEnabled ? "On" : "Off";
   }
+  if (refs.tabModeLabel) {
+    refs.tabModeLabel.textContent = state.ui.tabMode === "multitab" ? "Multi-tab" : "Single-tab";
+  }
+  if (refs.tabModeIndicatorText) {
+    refs.tabModeIndicatorText.textContent = state.ui.tabMode === "multitab" ? "Multi-tab mode" : "Single-tab mode";
+  }
 }
 
 function renderLoader(state, refs) {
   refs.loader.classList.toggle("is-hidden", !state.auth.loading);
 }
 
+function renderTabModePanel(state, refs) {
+  if (refs.tabModePanel) {
+    refs.tabModePanel.hidden = !state.ui.showTabModePanel;
+  }
+}
+
 export function createRenderer(refs) {
   return function render(state) {
     renderLoader(state, refs);
     renderTheme(state, refs);
+    renderTabModePanel(state, refs);
     renderToasts(state.ui.toasts, refs);
     renderLanding(state, refs);
     renderWorkspace(state, refs);

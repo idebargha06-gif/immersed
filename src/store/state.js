@@ -24,7 +24,8 @@ export function createInitialState() {
   const roomId = getRoomIdFromUrl();
   const selectedDuration = DEFAULT_DURATIONS[2].seconds;
   const savedTheme = localStorage.getItem("ff_theme") === "dark" ? "dark" : "light";
-  const notificationsEnabled = localStorage.getItem("ff_notifications") !== "off";
+  const savedTabMode = localStorage.getItem("ff_tabMode") || "multitab";
+  const notificationsEnabled = localStorage.getItem("ff_notifications") !== "disabled";
   const savedSound = localStorage.getItem("ff_sound") || "";
   const savedVolume = Number(localStorage.getItem("ff_volume") || "40");
 
@@ -39,6 +40,8 @@ export function createInitialState() {
     ui: {
       theme: savedTheme,
       notificationsEnabled,
+      tabMode: savedTabMode,
+      showTabModePanel: false,
       profileOpen: false,
       roomBoard: "global",
       sections: {
@@ -73,11 +76,31 @@ export function createInitialState() {
       phaseStartedAt: null,
       phaseInitialTime: selectedDuration,
       distractionCount: 0,
+      realDistractionCount: 0,
+      contextSwitchCount: 0,
+      idleEventCount: 0,
       distractionPenaltyTotal: 0,
+      idlePenaltyTotal: 0,
+      contextSwitchPenaltyTotal: 0,
       distractionLog: [],
+      contextSwitchLog: [],
+      idleLog: [],
       blurStartedAt: null,
       lastActivityAt: Date.now(),
-      distractionHandled: false
+      distractionHandled: false,
+      sessionStartedAt: null,
+      idleNudgeAt: null,
+      basePoints: 0,
+      bonusPoints: 0,
+      bonuses: {
+        cleanSession: false,
+        deepFocus: false,
+        consistency: false,
+        recovery: false
+      },
+      deepFocusStartTime: null,
+      lastSwitchTime: null,
+      recoveryDetected: false
     },
     session: {
       focusGoal: "",

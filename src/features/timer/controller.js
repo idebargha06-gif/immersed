@@ -1,16 +1,31 @@
-import { IDLE_THRESHOLD_MS, SESSION_MODES, TIMER_TICK_MS } from "../../utils/constants.js";
-import { calculateDistractionPenalty } from "../../utils/scoring.js";
+import {
+  IDLE_THRESHOLD_MS,
+  IDLE_NUDGE_MS,
+  SESSION_MODES,
+  TIMER_TICK_MS,
+  REAL_DISTRACTION_PENALTY,
+  CONTEXT_SWITCH_PENALTY,
+  CONTEXT_SWITCH_FREE_LIMIT,
+  IDLE_PENALTY,
+  PANIC_SWITCH_PENALTY_SINGLE,
+  PANIC_SWITCH_PENALTY_MULTI,
+  DEEP_FOCUS_THRESHOLD_MINUTES
+} from "../../utils/constants.js";
+import { calculateContextSwitchPenalty } from "../../utils/scoring.js";
 import { getNextPomodoroPhase, getPomodoroPhaseConfig, getPreciseTimeLeft } from "../../utils/timer.js";
 
 export function createTimerController({ store, feedback }) {
   let tickId = null;
   let idleId = null;
+  let idleNudgeShown = false;
   const handlers = {
     onToggleSession: null,
     onEscape: null,
     onSessionFinished: null,
     onDistraction: null,
-    onDistractionCleared: null
+    onDistractionCleared: null,
+    onContextSwitch: null,
+    onIdleNudge: null
   };
 
   function setHandlers(nextHandlers) {
@@ -80,15 +95,48 @@ export function createTimerController({ store, feedback }) {
         return;
       }
 
-      if (Date.now() - state.timer.lastActivityAt > IDLE_THRESHOLD_MS) {
-        recordDistraction("Idle", 300);
+      const idleDuration = Date.now() - state.timer.lastActivityAt;
+      const isTabActive = document.visibilityState === "visible";
+
+      // Only check idle if tab is active and threshold reached
+      if (isTabActive && idleDuration > IDLE_THRESHOLD_MS) {
+        if (!idleNudgeShown && !state.timer.idleNudgeAt) {
+          // Show gentle nudge first
+          idleNudgeShown = true;
+          store.setState((current) => ({
+            ...current,
+            timer: {
+              ...current.timer,
+              idleNudgeAt: Date.now()
+            }
+          }));
+          feedback.setBanner("🤔 Still there? Tap anywhere to confirm you're focused");
+          handlers.onIdleNudge?.();
+        } else if (state.timer.idleNudgeAt && Date.now() - state.timer.idleNudgeAt > IDLE_NUDGE_MS) {
+          // 60 seconds passed since nudge, record idle event
+          recordIdleEvent(Math.floor(idleDuration / 1000));
+          idleNudgeShown = false;
+          store.setState((current) => ({
+            ...current,
+            timer: {
+              ...current.timer,
+              lastActivityAt: Date.now(),
+              idleNudgeAt: null
+            }
+          }));
+          feedback.setBanner("");
+        }
+      } else if (idleDuration < IDLE_THRESHOLD_MS && state.timer.idleNudgeAt) {
+        // User became active again, clear nudge
+        idleNudgeShown = false;
         store.setState((current) => ({
           ...current,
           timer: {
             ...current.timer,
-            lastActivityAt: Date.now()
+            idleNudgeAt: null
           }
         }));
+        feedback.setBanner("");
       }
     }, 30000);
   }
@@ -168,18 +216,39 @@ export function createTimerController({ store, feedback }) {
         ...current.timer,
         running: true,
         phaseStartedAt: Date.now(),
+        sessionStartedAt: Date.now(),
         totalTime: initialTime,
         timeLeft: initialTime,
         phaseInitialTime: initialTime,
         distractionCount: 0,
+        realDistractionCount: 0,
+        contextSwitchCount: 0,
+        idleEventCount: 0,
         distractionPenaltyTotal: 0,
+        idlePenaltyTotal: 0,
+        contextSwitchPenaltyTotal: 0,
         distractionLog: [],
+        contextSwitchLog: [],
+        idleLog: [],
         blurStartedAt: null,
         lastActivityAt: Date.now(),
         cumulativeFocusSeconds: current.timer.pomodoroEnabled ? 0 : current.timer.cumulativeFocusSeconds,
-        distractionHandled: false
+        distractionHandled: false,
+        idleNudgeAt: null,
+        basePoints: 0,
+        bonusPoints: 0,
+        bonuses: {
+          cleanSession: false,
+          deepFocus: false,
+          consistency: false,
+          recovery: false
+        },
+        deepFocusStartTime: null,
+        lastSwitchTime: null,
+        recoveryDetected: false
       }
     }));
+    idleNudgeShown = false;
     beginTicker();
   }
 
@@ -201,7 +270,19 @@ export function createTimerController({ store, feedback }) {
       return;
     }
 
-    const nextTimeLeft = getPreciseTimeLeft(control.startedAt, control.totalTime);
+    // Calculate time left, accounting for potential network delay on initial sync
+    // If timer just started (within 3 seconds), use full initial time to avoid
+    // network delay causing timer to start at 25:02 instead of 25:00
+    const elapsed = Math.floor((Date.now() - control.startedAt) / 1000);
+    let nextTimeLeft;
+    if (elapsed <= 3) {
+      // Timer just started - use full time to sync all participants exactly
+      nextTimeLeft = control.totalTime;
+    } else {
+      // Timer running for a while - calculate precise time left
+      nextTimeLeft = getPreciseTimeLeft(control.startedAt, control.totalTime);
+    }
+
     stopIntervals();
 
     store.setState((state) => ({
@@ -245,14 +326,34 @@ export function createTimerController({ store, feedback }) {
         phaseStartedAt: null,
         phaseInitialTime: state.timer.selectedDuration,
         distractionCount: 0,
+        realDistractionCount: 0,
+        contextSwitchCount: 0,
+        idleEventCount: 0,
         distractionPenaltyTotal: 0,
+        idlePenaltyTotal: 0,
+        contextSwitchPenaltyTotal: 0,
         distractionLog: [],
+        contextSwitchLog: [],
+        idleLog: [],
         blurStartedAt: null,
         pomodoroEnabled: false,
         pomodoroPhase: "work",
         pomodoroCycle: 0,
         cumulativeFocusSeconds: 0,
-        distractionHandled: false
+        distractionHandled: false,
+        sessionStartedAt: null,
+        idleNudgeAt: null,
+        basePoints: 0,
+        bonusPoints: 0,
+        bonuses: {
+          cleanSession: false,
+          deepFocus: false,
+          consistency: false,
+          recovery: false
+        },
+        deepFocusStartTime: null,
+        lastSwitchTime: null,
+        recoveryDetected: false
       }
     }));
   }
@@ -269,38 +370,57 @@ export function createTimerController({ store, feedback }) {
         phaseStartedAt: null,
         phaseInitialTime: state.timer.selectedDuration,
         distractionCount: 0,
+        realDistractionCount: 0,
+        contextSwitchCount: 0,
+        idleEventCount: 0,
         distractionPenaltyTotal: 0,
+        idlePenaltyTotal: 0,
+        contextSwitchPenaltyTotal: 0,
         distractionLog: [],
+        contextSwitchLog: [],
+        idleLog: [],
         blurStartedAt: null,
         pomodoroEnabled: false,
         pomodoroPhase: "work",
         pomodoroCycle: 0,
         cumulativeFocusSeconds: 0,
-        distractionHandled: false
+        distractionHandled: false,
+        sessionStartedAt: null,
+        idleNudgeAt: null,
+        basePoints: 0,
+        bonusPoints: 0,
+        bonuses: {
+          cleanSession: false,
+          deepFocus: false,
+          consistency: false,
+          recovery: false
+        },
+        deepFocusStartTime: null,
+        lastSwitchTime: null,
+        recoveryDetected: false
       }
     }));
   }
 
-  function recordDistraction(reason, awaySeconds = 0) {
+  function recordIdleEvent(awaySeconds = 0) {
     const state = store.getState();
     if (!state.timer.running) {
       return;
     }
 
-    const recentCount = state.timer.distractionLog.filter((entry) => entry.recordedAt > Date.now() - 60000).length + 1;
-    const penalty = calculateDistractionPenalty(state.timer.sessionMode, awaySeconds, recentCount);
-    const nextCount = state.timer.distractionCount + 1;
+    const penalty = IDLE_PENALTY;
+    const nextCount = state.timer.idleEventCount + 1;
 
     store.setState((current) => ({
       ...current,
       timer: {
         ...current.timer,
-        distractionCount: nextCount,
-        distractionPenaltyTotal: current.timer.distractionPenaltyTotal + penalty,
-        distractionLog: [
-          ...current.timer.distractionLog,
+        idleEventCount: nextCount,
+        idlePenaltyTotal: current.timer.idlePenaltyTotal + penalty,
+        idleLog: [
+          ...current.timer.idleLog,
           {
-            reason,
+            reason: "Idle detection",
             duration: awaySeconds,
             penalty,
             recordedAt: Date.now()
@@ -308,8 +428,92 @@ export function createTimerController({ store, feedback }) {
         ]
       }
     }));
+  }
 
-    handlers.onDistraction?.({ awaySeconds, distractionCount: nextCount });
+  function recordContextSwitch(reason, awaySeconds = 0) {
+    const state = store.getState();
+    if (!state.timer.running) {
+      return;
+    }
+
+    const nextCount = state.timer.contextSwitchCount + 1;
+    const penalty = nextCount > CONTEXT_SWITCH_FREE_LIMIT ? CONTEXT_SWITCH_PENALTY : 0;
+
+    store.setState((current) => ({
+      ...current,
+      timer: {
+        ...current.timer,
+        contextSwitchCount: nextCount,
+        contextSwitchPenaltyTotal: current.timer.contextSwitchPenaltyTotal + penalty,
+        contextSwitchLog: [
+          ...current.timer.contextSwitchLog,
+          {
+            reason,
+            duration: awaySeconds,
+            penalty,
+            recordedAt: Date.now()
+          }
+        ],
+        lastSwitchTime: Date.now()
+      }
+    }));
+
+    // Check for recovery bonus - user had distraction but continued
+    if (state.timer.realDistractionCount > 0 && !state.timer.recoveryDetected) {
+      store.setState((current) => ({
+        ...current,
+        timer: {
+          ...current.timer,
+          recoveryDetected: true,
+          bonuses: {
+            ...current.timer.bonuses,
+            recovery: true
+          }
+        }
+      }));
+    }
+
+    handlers.onContextSwitch?.({ awaySeconds, contextSwitchCount: nextCount });
+  }
+
+  function recordDistraction(reason, awaySeconds = 0, isPanicSwitch = false, isSingleTabMode = false) {
+    const state = store.getState();
+    if (!state.timer.running) {
+      return;
+    }
+
+    // Calculate penalty based on panic switch and mode
+    let penalty = REAL_DISTRACTION_PENALTY; // -15 for real distractions in single-tab mode
+    
+    // Panic switch (within first 30 seconds) has different penalties
+    if (isPanicSwitch) {
+      penalty = isSingleTabMode ? PANIC_SWITCH_PENALTY_SINGLE : PANIC_SWITCH_PENALTY_MULTI; // -5 for single, 0 for multi
+    }
+
+    const nextCount = state.timer.realDistractionCount + 1;
+
+    store.setState((current) => ({
+      ...current,
+      timer: {
+        ...current.timer,
+        distractionCount: current.timer.distractionCount + 1,
+        realDistractionCount: nextCount,
+        distractionPenaltyTotal: current.timer.distractionPenaltyTotal + penalty,
+        distractionLog: [
+          ...current.timer.distractionLog,
+          {
+            reason,
+            duration: awaySeconds,
+            penalty,
+            recordedAt: Date.now(),
+            type: "real",
+            isPanicSwitch
+          }
+        ]
+      }
+    }));
+
+    handlers.onDistraction?.({ awaySeconds, distractionCount: nextCount, isPanicSwitch });
   }
 
   function clearDistractionTracking(awaySeconds = 0) {
@@ -344,13 +548,30 @@ export function createTimerController({ store, feedback }) {
       window.addEventListener(eventName, markActive);
     });
 
-    window.addEventListener("blur", () => {
+    const handleBlur = () => {
       const state = store.getState();
       if (!state.timer.running || state.timer.distractionHandled) {
         return;
       }
 
-      recordDistraction("Window change", 0);
+      const sessionDuration = Date.now() - (state.timer.sessionStartedAt || Date.now());
+      const isPanicSwitch = sessionDuration < 30000; // Less than 30 seconds
+      const isSingleTabMode = state.ui.tabMode === "singletab";
+
+      // Real distraction: single-tab mode only
+      // Context switch: multi-tab mode (with free limit)
+      if (isSingleTabMode) {
+        recordDistraction(
+          isPanicSwitch ? "Early switch detected" : "Tab switch (single-tab)",
+          0,
+          isPanicSwitch,
+          true
+        );
+      } else {
+        // Context switch: multi-tab mode
+        recordContextSwitch("Context switch", 0);
+      }
+
       store.setState((current) => ({
         ...current,
         timer: {
@@ -359,7 +580,9 @@ export function createTimerController({ store, feedback }) {
           distractionHandled: true
         }
       }));
-    });
+    };
+
+    window.addEventListener("blur", handleBlur);
 
     window.addEventListener("focus", () => {
       const state = store.getState();
@@ -379,7 +602,23 @@ export function createTimerController({ store, feedback }) {
 
       if (document.hidden) {
         if (!state.timer.distractionHandled) {
-          recordDistraction("Tab hidden", 0);
+          const sessionDuration = Date.now() - (state.timer.sessionStartedAt || Date.now());
+          const isPanicSwitch = sessionDuration < 30000; // Less than 30 seconds
+          const isSingleTabMode = state.ui.tabMode === "singletab";
+
+          // Real distraction: single-tab mode only
+          if (isSingleTabMode) {
+            recordDistraction(
+              isPanicSwitch ? "Early switch detected" : "Tab hidden (single-tab)",
+              0,
+              isPanicSwitch,
+              true
+            );
+          } else {
+            // Context switch: multi-tab mode
+            recordContextSwitch("Context switch", 0);
+          }
+
           store.setState((current) => ({
             ...current,
             timer: {
@@ -445,12 +684,49 @@ export function createTimerController({ store, feedback }) {
 
   function getSessionDiagnostics() {
     const state = store.getState();
+    const now = Date.now();
+    const sessionDuration = state.timer.sessionStartedAt 
+      ? Math.floor((now - state.timer.sessionStartedAt) / 1000)
+      : 0;
+    const focusedSeconds = getFocusedSeconds();
+    
+    // Calculate bonuses
+    const bonuses = { ...state.timer.bonuses };
+    
+    // Clean session bonus: no real distractions
+    if (state.timer.realDistractionCount === 0) {
+      bonuses.cleanSession = true;
+    }
+    
+    // Consistency bonus: no idle events
+    if (state.timer.idleEventCount === 0) {
+      bonuses.consistency = true;
+    }
+    
+    // Deep focus bonus: no switching for 5+ minutes
+    // This is tracked if user hasn't switched in first 5 minutes
+    const fiveMinutes = 5 * 60;
+    if (focusedSeconds >= fiveMinutes && state.timer.contextSwitchCount === 0 && state.timer.realDistractionCount === 0) {
+      bonuses.deepFocus = true;
+    }
+    
     return {
-      timeSpent: getFocusedSeconds(),
+      timeSpent: focusedSeconds,
+      totalSessionTime: sessionDuration,
       distractions: state.timer.distractionCount,
+      realDistractions: state.timer.realDistractionCount,
+      contextSwitches: state.timer.contextSwitchCount,
+      idleEvents: state.timer.idleEventCount,
       penaltyTotal: state.timer.distractionPenaltyTotal,
+      idlePenaltyTotal: state.timer.idlePenaltyTotal,
+      contextSwitchPenaltyTotal: state.timer.contextSwitchPenaltyTotal,
       distractionLog: state.timer.distractionLog.map((entry) => ({ ...entry })),
-      sessionMode: state.timer.sessionMode
+      contextSwitchLog: state.timer.contextSwitchLog.map((entry) => ({ ...entry })),
+      idleLog: state.timer.idleLog.map((entry) => ({ ...entry })),
+      sessionMode: state.timer.sessionMode,
+      tabMode: state.ui.tabMode,
+      bonuses,
+      recoveryDetected: state.timer.recoveryDetected
     };
   }
 

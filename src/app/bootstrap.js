@@ -215,6 +215,63 @@ export function bootstrapApp() {
         case "start-session":
           await sessions.startSession();
           break;
+        case "show-tab-mode-panel": {
+          const savedTabMode = localStorage.getItem("ff_tabMode");
+          if (savedTabMode) {
+            // User has a saved preference, start session directly
+            await sessions.startSession();
+          } else {
+            // First time - show the panel
+            store.setState((state) => ({
+              ...state,
+              ui: { ...state.ui, showTabModePanel: true }
+            }));
+          }
+          break;
+        }
+        case "cancel-tab-mode":
+          store.setState((state) => ({
+            ...state,
+            ui: { ...state.ui, showTabModePanel: false }
+          }));
+          break;
+        case "confirm-start-session": {
+          const rememberChoice = refs.rememberTabMode?.checked;
+          const selectedMode = root.querySelector('input[name="tabMode"]:checked')?.value || "multitab";
+          
+          if (rememberChoice) {
+            localStorage.setItem("ff_tabMode", selectedMode);
+          }
+          
+          store.setState((state) => ({
+            ...state,
+            ui: { ...state.ui, showTabModePanel: false, tabMode: selectedMode }
+          }));
+          
+          await sessions.startSession();
+          break;
+        }
+        case "toggle-tab-mode": {
+          const currentMode = store.getState().ui.tabMode;
+          const newMode = currentMode === "multitab" ? "singletab" : "multitab";
+          localStorage.setItem("ff_tabMode", newMode);
+          store.setState((state) => ({
+            ...state,
+            ui: { ...state.ui, tabMode: newMode }
+          }));
+          feedback.notify({
+            type: "info",
+            title: "Tab mode changed",
+            message: newMode === "multitab" ? "Multi-tab focus enabled" : "Single-tab focus enabled"
+          });
+          break;
+        }
+        case "open-tab-mode-modal":
+          store.setState((state) => ({
+            ...state,
+            ui: { ...state.ui, showTabModePanel: true }
+          }));
+          break;
         case "stop-session":
           await sessions.stopSession();
           break;

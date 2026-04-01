@@ -7,9 +7,11 @@ export function createAppTemplate() {
 
       <div id="authLoader" class="auth-loader">
         <div class="auth-loader__card">
-          <div class="auth-loader__mark">IM</div>
-          <div class="auth-loader__ring"></div>
-          <p>Preparing your workspace...</p>
+          <div class="auth-loader__logo">
+            <img src="/icon-512.png" alt="Immersed" class="auth-loader__logo-img">
+          </div>
+          <div class="auth-loader__spinner"></div>
+          <p class="auth-loader__text">Preparing your workspace...</p>
         </div>
       </div>
 
@@ -197,6 +199,21 @@ export function createAppTemplate() {
               <h2>Locally hosted sound, distraction logging, streaks, and badges.</h2>
               <p>Everything reinforces habit-building without turning the interface into a game board first and a focus tool second.</p>
             </article>
+            <article class="feature-card">
+              <p class="eyebrow">Focus modes</p>
+              <h2>Study, Deep, and Sprint modes with adaptive penalties.</h2>
+              <p>Choose your intensity. Deep mode enforces strict accountability, Sprint offers lighter penalties for quick bursts, Study balances both.</p>
+            </article>
+            <article class="feature-card">
+              <p class="eyebrow">Tab awareness</p>
+              <h2>Single-tab focus or multi-tab flexibility with smart tracking.</h2>
+              <p>Switch modes based on your workflow. Single-tab counts real distractions strictly; multi-tab tracks context switches with free allowances.</p>
+            </article>
+            <article class="feature-card">
+              <p class="eyebrow">Smart scoring</p>
+              <h2>Behavior-based scoring with bonuses for consistency and recovery.</h2>
+              <p>Earn Clean Session, Deep Focus, Consistency, and Recovery bonuses. Efficiency calculated from actual focused time, not just duration.</p>
+            </article>
           </section>
 
           <section id="how-it-works" class="section-steps">
@@ -280,20 +297,22 @@ export function createAppTemplate() {
             </div>
 
             <div class="workspace-bar__right">
-              <button id="workspacePresenceButton" class="presence-trigger" data-action="toggle-presence-dashboard" type="button" aria-expanded="false" aria-controls="workspacePresencePanel">
-                <span id="workspacePresenceDot" class="status-dot status-dot--distracted" aria-hidden="true"></span>
-                <span class="sr-only">Toggle live presence dashboard</span>
-              </button>
-              <div id="workspaceStreakBadge" class="streak-chip" hidden>
-                <span class="streak-chip__flame" aria-hidden="true"></span>
-                <div class="streak-chip__content">
-                  <span class="streak-chip__label">Streak</span>
-                  <strong id="workspaceStreakValue">0</strong>
+              <div class="account-toolbar">
+                <button id="workspacePresenceButton" class="presence-trigger" data-action="toggle-presence-dashboard" type="button" aria-expanded="false" aria-controls="workspacePresencePanel">
+                  <span id="workspacePresenceDot" class="status-dot status-dot--distracted" aria-hidden="true"></span>
+                  <span class="sr-only">Toggle live presence dashboard</span>
+                </button>
+                <div id="workspaceStreakBadge" class="streak-chip" hidden>
+                  <span class="streak-chip__flame" aria-hidden="true"></span>
+                  <div class="streak-chip__content">
+                    <span class="streak-chip__label">Streak</span>
+                    <strong id="workspaceStreakValue">0</strong>
+                  </div>
                 </div>
+                <button id="profileButton" class="profile-button profile-button--minimal" data-action="toggle-profile" type="button">
+                  <span id="profileAvatar" class="avatar avatar--small"></span>
+                </button>
               </div>
-              <button id="profileButton" class="profile-button profile-button--minimal" data-action="toggle-profile" type="button">
-                <span id="profileAvatar" class="avatar avatar--small"></span>
-              </button>
             </div>
           </header>
 
@@ -355,6 +374,12 @@ export function createAppTemplate() {
                         <span>Room</span>
                         <span id="roomModeCountBadge" class="mode-count-badge" hidden>0</span>
                       </button>
+                    </div>
+                    
+                    <div class="tab-mode-indicator">
+                      <span class="tab-mode-indicator__icon">📑</span>
+                      <span id="tabModeIndicatorText" class="tab-mode-indicator__text">Multi-tab mode</span>
+                      <button class="tab-mode-indicator__change" data-action="open-tab-mode-modal" type="button">change</button>
                     </div>
 
                     <div id="roomPanel" class="room-panel" hidden>
@@ -449,14 +474,61 @@ export function createAppTemplate() {
 
                 <div class="button-row">
                   <button id="pomodoroButton" class="button button--ghost" data-action="toggle-pomodoro" type="button">Pomodoro</button>
-                  <button id="startButton" class="button button--primary" data-action="start-session" type="button">Start session</button>
+                  <button id="startButton" class="button button--primary" data-action="show-tab-mode-panel" type="button">Start session</button>
                   <button id="stopButton" class="button button--secondary" data-action="stop-session" type="button">Stop session</button>
+                </div>
+
+                <div id="tabModePanel" class="modal" hidden>
+                  <div class="modal__surface tab-mode-modal">
+                    <div class="tab-mode-panel__content">
+                      <div class="tab-mode-panel__header">
+                        <span class="tab-mode-panel__icon">🎯</span>
+                        <h3 class="tab-mode-panel__title">Before you begin...</h3>
+                      </div>
+                      <p class="tab-mode-panel__question">Will you need other tabs while focusing?</p>
+                      
+                      <div class="tab-mode-options">
+                        <label class="tab-mode-option">
+                          <input type="radio" name="tabMode" value="singletab" class="tab-mode-option__input">
+                          <div class="tab-mode-option__card">
+                            <div class="tab-mode-option__radio"></div>
+                            <div class="tab-mode-option__info">
+                              <strong>Single-tab focus (strict mode)</strong>
+                              <span>Only this tab. Any switch = distraction counted.</span>
+                            </div>
+                          </div>
+                        </label>
+                        
+                        <label class="tab-mode-option">
+                          <input type="radio" name="tabMode" value="multitab" class="tab-mode-option__input" checked>
+                          <div class="tab-mode-option__card">
+                            <div class="tab-mode-option__radio"></div>
+                            <div class="tab-mode-option__info">
+                              <strong>Multi-tab focus (study mode)</strong>
+                              <span>You're accountable for your focus. Tabs tracked for self-awareness, not penalized.</span>
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                      
+                      <label class="tab-mode-remember">
+                        <input type="checkbox" id="rememberTabMode" class="tab-mode-remember__input">
+                        <span class="tab-mode-remember__check"></span>
+                        <span>Remember my choice</span>
+                      </label>
+                      
+                      <div class="tab-mode-panel__actions">
+                        <button class="button button--ghost button--small" data-action="cancel-tab-mode" type="button">Cancel</button>
+                        <button class="button button--primary" data-action="confirm-start-session" type="button">Start session</button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="meta-grid">
                   <article class="meta-card">
                     <span class="meta-card__label">Scoring</span>
-                    <strong id="scoreRuleLabel">+1 point per second</strong>
+                    <strong id="scoreRuleLabel">+10 points per minute</strong>
                     <p id="scorePenaltyLabel" class="meta-card__body"></p>
                   </article>
                   <article class="meta-card">
@@ -490,7 +562,7 @@ export function createAppTemplate() {
                       <span class="metric-card__label">Time</span>
                       <strong id="summaryTimeValue">00:00</strong>
                     </div>
-                    <div class="metric-card">
+                    <div class="metric-card" id="summaryDistractionsCard" hidden>
                       <span class="metric-card__label">Distractions</span>
                       <strong id="summaryDistractionValue">0</strong>
                     </div>
@@ -498,14 +570,20 @@ export function createAppTemplate() {
                       <span class="metric-card__label">Points</span>
                       <strong id="summaryScoreValue">0</strong>
                     </div>
-                    <div class="metric-card">
+                    <div class="metric-card" id="summaryFocusCard" hidden>
                       <span class="metric-card__label">Focus</span>
-                      <strong id="summaryFocusValue">100%</strong>
+                      <strong id="summaryFocusValue">—</strong>
                     </div>
                   </div>
 
+                  <div id="shortSessionNotice" class="summary-panel__notice" hidden>
+                    <p>Session too short to evaluate focus.</p>
+                    <small>Focus stats start after 1 minute.</small>
+                  </div>
+
                   <p id="sessionFeedback" class="summary-panel__feedback"></p>
-                  <div id="distractionLog" class="log-list"></div>
+
+                  <div id="distractionLog" class="summary-panel__log"></div>
 
                   <div class="button-row button-row--compact">
                     <button class="button button--ghost button--small" data-action="share-session" type="button">Share result</button>
@@ -658,6 +736,13 @@ export function createAppTemplate() {
                 </svg>
                 <span>Notifications</span>
                 <strong id="notificationLabel">On</strong>
+              </button>
+              <button class="setting-row" data-action="toggle-tab-mode" type="button">
+                <svg class="profile-menu-item__icon" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M4 6h4v2H4zm0 5h4v2H4zm0 5h4v2H4zm6-10h10v2H10zm0 5h10v2H10zm0 5h10v2H10z"/>
+                </svg>
+                <span>Tab mode</span>
+                <strong id="tabModeLabel">Multi-tab</strong>
               </button>
               <button class="setting-row setting-row--danger" data-action="sign-out" type="button">
                 <svg class="profile-menu-item__icon" viewBox="0 0 24 24" fill="currentColor">

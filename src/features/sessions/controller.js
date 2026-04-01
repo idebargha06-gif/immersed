@@ -1,5 +1,11 @@
 import { getRandomQuote } from "../../utils/constants.js";
-import { calculateFocusPercentage, checkBadges, calculateSessionScore } from "../../utils/scoring.js";
+import {
+  calculateEfficiency,
+  calculateSessionScore,
+  getFocusRating,
+  calculateMomentum,
+  shouldResetStreak
+} from "../../utils/scoring.js";
 
 export function createSessionsController({
   store,
@@ -157,12 +163,97 @@ export function createSessionsController({
     audio.handleSessionStop();
     feedback.setBanner("");
     rooms.updatePresence({ focusing: false, distractedAt: 0, awayDuration: 0 }).catch(() => {});
+
+    // Calculate bonuses - strict requirements
+    const bonuses = { ...diagnostics.bonuses };
+    
+    // Clean Session bonus: NO real distractions (strict)
+    if (diagnostics.realDistractions === 0 && diagnostics.idleEventCount === 0) {
+      bonuses.cleanSession = true;
+    } else {
+      bonuses.cleanSession = false;
+    }
+    
+    // Consistency bonus: NO idle events AND no real distractions
+    if (diagnostics.idleEventCount === 0 && diagnostics.realDistractions === 0) {
+      bonuses.consistency = true;
+    } else {
+      bonuses.consistency = false;
+    }
+    
+    // Deep focus bonus: 5+ minutes focused with NO distractions at all
+    const fiveMinutes = 5 * 60;
+    if (diagnostics.timeSpent >= fiveMinutes && 
+        diagnostics.realDistractions === 0 && 
+        diagnostics.idleEventCount === 0 &&
+        diagnostics.contextSwitches <= 2) {
+      bonuses.deepFocus = true;
+    } else {
+      bonuses.deepFocus = false;
+    }
+    
+    // Recovery bonus: had distraction but continued (session > 2 min after distraction)
+    if (diagnostics.recoveryDetected && diagnostics.realDistractions > 0) {
+      bonuses.recovery = true;
+    } else {
+      bonuses.recovery = false;
+    }
+
+    // Calculate penalties
+    const penalties = {
+      distraction: diagnostics.realDistractions * 15,
+      contextSwitch: Math.max(0, diagnostics.contextSwitches - 5) * 2,
+      idle: diagnostics.idleEvents * 20,
+      total: 0
+    };
+    penalties.total = penalties.distraction + penalties.contextSwitch + penalties.idle;
+
+    // Calculate score with bonuses
+    const scoreData = calculateSessionScore(diagnostics.timeSpent, bonuses, penalties);
+    
+    // Calculate efficiency based on focused time minus penalty impact
+    // Efficiency = (actual_focus_quality / total_time) * 100
+    // Where focus quality = focusedSeconds - (penalty impact on perceived focus)
+    const totalPenalties = penalties.total;
+    const penaltyImpact = totalPenalties * 2; // Each penalty point reduces efficiency more
+    const effectiveFocusTime = Math.max(0, diagnostics.timeSpent - penaltyImpact);
+    const efficiency = calculateEfficiency(effectiveFocusTime, diagnostics.totalSessionTime);
+    
+    // Only get focus rating if efficiency is meaningful
+    const focusRating = efficiency >= 50 ? getFocusRating(efficiency) : null;
+    
+    // Calculate momentum (compare with previous session)
+    const previousResult = state.session.lastResult;
+    const momentum = calculateMomentum(scoreData.total, previousResult?.score);
+    
+    // Update streak
+    const sessionMinutes = Math.floor(diagnostics.timeSpent / 60);
+    const shouldReset = shouldResetStreak(sessionMinutes, diagnostics.realDistractions);
+    let streak = state.stats?.streak || 0;
+    if (shouldReset) {
+      streak = 0;
+    } else if (completed || sessionMinutes >= 2) {
+      streak += 1;
+    }
+
+    // Generate smart feedback messages
+    const smartFeedback = generateSmartFeedback(diagnostics, efficiency, scoreData.bonusBreakdown);
+
     const result = {
       ...diagnostics,
       completed,
-      goal: store.getState().session.focusGoal || "Untitled session",
-      score: calculateSessionScore(diagnostics.timeSpent, diagnostics.penaltyTotal),
-      focusPercentage: calculateFocusPercentage(diagnostics.timeSpent, diagnostics.penaltyTotal)
+      goal: state.session.focusGoal || "Untitled session",
+      score: scoreData.total,
+      basePoints: scoreData.basePoints,
+      bonusPoints: scoreData.bonusPoints,
+      bonusBreakdown: scoreData.bonusBreakdown,
+      penaltyBreakdown: penalties,
+      efficiency,
+      focusRating,
+      momentum,
+      streak,
+      feedback: smartFeedback,
+      nextActionSuggestion: generateNextAction(diagnostics, efficiency)
     };
 
     if (!result.timeSpent) {
@@ -193,7 +284,7 @@ export function createSessionsController({
       await rooms.publishTimerStop({ completed, focusGoal: result.goal });
     }
 
-    const previousBadges = new Set(store.getState().stats.badges);
+    const previousBadges = new Set(state.stats.badges);
 
     try {
       const workspace = await repository.saveSession({
@@ -206,7 +297,8 @@ export function createSessionsController({
         ...current,
         stats: {
           ...current.stats,
-          ...workspace.stats
+          ...workspace.stats,
+          streak: result.streak
         },
         history: workspace.history,
         session: {
@@ -216,6 +308,8 @@ export function createSessionsController({
         }
       }));
 
+      // Check badges
+      const { checkBadges } = await import("../../utils/scoring.js");
       const nextBadges = checkBadges(workspace.stats);
       const unlocked = nextBadges.find((badge) => !previousBadges.has(badge));
       if (unlocked) {
@@ -266,6 +360,59 @@ export function createSessionsController({
     }
   }
 
+  function generateSmartFeedback(diagnostics, efficiency, bonusBreakdown) {
+    const messages = [];
+    
+    // Check for early switch
+    const hasEarlySwitch = diagnostics.distractionLog?.some(d => d.isPanicSwitch);
+    if (hasEarlySwitch) {
+      messages.push("⚠️ Early switch detected");
+    }
+    
+    // Recovery feedback
+    if (diagnostics.recoveryDetected) {
+      messages.push("🔄 Great recovery after distraction");
+    }
+    
+    // Deep focus feedback
+    if (bonusBreakdown?.deepFocus) {
+      messages.push("🔥 Strong deep focus session");
+    }
+    
+    // Clean session
+    if (bonusBreakdown?.cleanSession) {
+      messages.push("✨ Perfect focus - no distractions!");
+    }
+    
+    // Too many switches
+    if (diagnostics.contextSwitches > 8) {
+      messages.push("📊 Many switches - try single-tab mode for deep work");
+    }
+    
+    // Low efficiency warning
+    if (efficiency < 50) {
+      messages.push("💡 Consider shorter sessions to build focus");
+    }
+    
+    return messages.length > 0 ? messages : ["Good focus session!"];
+  }
+
+  function generateNextAction(diagnostics, efficiency) {
+    if (diagnostics.realDistractions > 3) {
+      return "Try single-tab mode to minimize distractions";
+    }
+    if (diagnostics.contextSwitches > 5) {
+      return "Reduce switching frequency - batch your tasks";
+    }
+    if (efficiency > 90 && diagnostics.timeSpent > 600) {
+      return "Excellent! Try a longer session next time";
+    }
+    if (diagnostics.timeSpent < 120) {
+      return "Aim for at least 5 minutes of focused time";
+    }
+    return "Try 10 minutes without switching";
+  }
+
   async function stopSession() {
     await finalizeSession(false);
   }
@@ -290,11 +437,17 @@ export function createSessionsController({
     }
 
     const appUrl = window.location.origin;
+    const realDistractions = result.realDistractions ?? result.distractions ?? 0;
+    const contextSwitches = result.contextSwitches ?? 0;
+    const idleEvents = result.idleEvents ?? 0;
+    
     const text = [
       "Immersed",
       `Goal: ${store.getState().session.focusGoal || "Deep work"}`,
       `Time: ${Math.floor(result.timeSpent / 60)}m ${result.timeSpent % 60}s`,
-      `Distractions: ${result.distractions}`,
+      `Real distractions: ${realDistractions}`,
+      `Context switches: ${contextSwitches} (tracked, no penalty)`,
+      `Idle events: ${idleEvents}`,
       `Score: ${result.score} pts`,
       "",
       "Join me on Immersed and start your next clean focus session:",
