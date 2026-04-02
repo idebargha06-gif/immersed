@@ -589,6 +589,21 @@ a {
   background: var(--surface-soft);
 }
 
+@media (max-width: 640px) {
+  .board-list li,
+  .history-item,
+  .log-row,
+  .toast {
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+  
+  .log-row span:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
 .board-list__empty,
 .history-item--empty,
 .empty-copy,
@@ -1043,6 +1058,7 @@ a {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  margin-top: 8px;
 }
 
 .participant-pill {
@@ -1128,6 +1144,12 @@ a {
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
   margin-bottom: 16px;
+}
+
+@media (max-width: 640px) {
+  .summary-panel__stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .summary-panel__notice {

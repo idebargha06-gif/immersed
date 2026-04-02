@@ -527,7 +527,7 @@ export function createAppTemplate() {
 
                 <div class="meta-grid">
                   <article class="meta-card">
-                    <span class="meta-card__label">Scoring</span>
+                    <span class="meta-card__label">Scoring Rules</span>
                     <strong id="scoreRuleLabel">+10 points per minute</strong>
                     <p id="scorePenaltyLabel" class="meta-card__body"></p>
                   </article>

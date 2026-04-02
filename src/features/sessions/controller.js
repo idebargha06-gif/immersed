@@ -113,7 +113,10 @@ export function createSessionsController({
       return;
     }
 
+    let startedAt;
+    
     if (options.remoteControl) {
+      startedAt = options.remoteControl.startedAt;
       store.setState((current) => ({
         ...current,
         session: {
@@ -123,24 +126,23 @@ export function createSessionsController({
       }));
       timer.syncRemoteTimer(options.remoteControl);
     } else {
-      timer.start();
-    }
-
-    const liveTimer = store.getState().timer;
-    const startedAt = options.remoteControl?.startedAt || liveTimer.phaseStartedAt || Date.now();
-
-    if (state.room.mode === "room" && state.room.currentRoomId && !options.remoteControl) {
-      await rooms.publishTimerStart({
-        startedAt,
-        totalTime: liveTimer.totalTime,
-        selectedDuration: liveTimer.selectedDuration,
-        sessionMode: liveTimer.sessionMode,
-        pomodoroEnabled: liveTimer.pomodoroEnabled,
-        pomodoroPhase: liveTimer.pomodoroPhase,
-        pomodoroCycle: liveTimer.pomodoroCycle,
-        cumulativeFocusSeconds: liveTimer.cumulativeFocusSeconds,
-        focusGoal: store.getState().session.focusGoal
-      });
+      startedAt = timer.start();
+      // Use the exact timestamp from timer.start() for room sync
+      if (state.room.mode === "room" && state.room.currentRoomId) {
+        const liveTimer = store.getState().timer;
+        await rooms.publishTimerStart({
+          startedAt,
+          totalTime: liveTimer.totalTime,
+          selectedDuration: liveTimer.selectedDuration,
+          sessionMode: liveTimer.sessionMode,
+          pomodoroEnabled: liveTimer.pomodoroEnabled,
+          pomodoroPhase: liveTimer.pomodoroPhase,
+          pomodoroCycle: liveTimer.pomodoroCycle,
+          cumulativeFocusSeconds: liveTimer.cumulativeFocusSeconds,
+          focusGoal: store.getState().session.focusGoal,
+          isInitialSync: true
+        });
+      }
     }
 
     resetSummaryState();

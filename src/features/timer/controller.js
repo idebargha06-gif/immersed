@@ -17,6 +17,7 @@ import { getNextPomodoroPhase, getPomodoroPhaseConfig, getPreciseTimeLeft } from
 export function createTimerController({ store, feedback }) {
   let tickId = null;
   let idleId = null;
+  let awayPenaltyId = null;
   let idleNudgeShown = false;
   const handlers = {
     onToggleSession: null,
@@ -41,6 +42,55 @@ export function createTimerController({ store, feedback }) {
       window.clearInterval(idleId);
       idleId = null;
     }
+    if (awayPenaltyId) {
+      window.clearInterval(awayPenaltyId);
+      awayPenaltyId = null;
+    }
+  }
+
+  function stopAwayPenaltyTimer() {
+    if (awayPenaltyId) {
+      window.clearInterval(awayPenaltyId);
+      awayPenaltyId = null;
+    }
+  }
+
+  function startAwayPenaltyTimer(blurStartedAt) {
+    stopAwayPenaltyTimer();
+    const state = store.getState();
+    const isSingleTabMode = state.ui?.tabMode === "singletab";
+    
+    // Only run penalty accumulation in single-tab mode
+    if (!isSingleTabMode) {
+      return;
+    }
+
+    // Track accumulated penalty while away (logged once when user returns)
+    let accumulatedPenalty = 0;
+    let lastPenaltyAt = 0;
+
+    awayPenaltyId = window.setInterval(() => {
+      const currentState = store.getState();
+      if (!currentState.timer.running || !currentState.timer.blurStartedAt) {
+        stopAwayPenaltyTimer();
+        return;
+      }
+
+      const awaySeconds = Math.floor((Date.now() - blurStartedAt) / 1000);
+      const penalty = 3; // -3 points every 30 seconds while away
+      accumulatedPenalty += penalty;
+      lastPenaltyAt = awaySeconds;
+
+      // Accumulate penalty in state (single consolidated entry will be logged on return)
+      store.setState((current) => ({
+        ...current,
+        timer: {
+          ...current.timer,
+          awayPenaltyAccumulated: accumulatedPenalty,
+          awayPenaltyDuration: awaySeconds
+        }
+      }));
+    }, 30000); // Every 30 seconds
   }
 
   function beginTicker() {
@@ -205,18 +255,19 @@ export function createTimerController({ store, feedback }) {
   function start() {
     const state = store.getState();
     if (state.timer.running) {
-      return;
+      return null;
     }
 
     const initialTime = state.timer.timeLeft > 0 ? state.timer.timeLeft : state.timer.selectedDuration;
+    const now = Date.now();
 
     store.setState((current) => ({
       ...current,
       timer: {
         ...current.timer,
         running: true,
-        phaseStartedAt: Date.now(),
-        sessionStartedAt: Date.now(),
+        phaseStartedAt: now,
+        sessionStartedAt: now,
         totalTime: initialTime,
         timeLeft: initialTime,
         phaseInitialTime: initialTime,
@@ -231,7 +282,7 @@ export function createTimerController({ store, feedback }) {
         contextSwitchLog: [],
         idleLog: [],
         blurStartedAt: null,
-        lastActivityAt: Date.now(),
+        lastActivityAt: now,
         cumulativeFocusSeconds: current.timer.pomodoroEnabled ? 0 : current.timer.cumulativeFocusSeconds,
         distractionHandled: false,
         idleNudgeAt: null,
@@ -250,6 +301,7 @@ export function createTimerController({ store, feedback }) {
     }));
     idleNudgeShown = false;
     beginTicker();
+    return now;
   }
 
   function stopRuntime() {
@@ -271,11 +323,11 @@ export function createTimerController({ store, feedback }) {
     }
 
     // Calculate time left, accounting for potential network delay on initial sync
-    // If timer just started (within 3 seconds), use full initial time to avoid
-    // network delay causing timer to start at 25:02 instead of 25:00
+    // If timer just started (within 5 seconds) or isInitialSync flag is set, 
+    // use full initial time to avoid network delay causing timer to start at 25:01 instead of 25:00
     const elapsed = Math.floor((Date.now() - control.startedAt) / 1000);
     let nextTimeLeft;
-    if (elapsed <= 3) {
+    if (control.isInitialSync || elapsed <= 5) {
       // Timer just started - use full time to sync all participants exactly
       nextTimeLeft = control.totalTime;
     } else {
@@ -526,7 +578,16 @@ export function createTimerController({ store, feedback }) {
       }
     }));
 
+    const state = store.getState();
+    // Multi-tab mode is default (anything other than "singletab")
+    const isMultiTabMode = state.ui?.tabMode !== "singletab";
+    
     if (awaySeconds >= 10) {
+      // In multi-tab mode, only show modal after 5 context switches
+      if (isMultiTabMode && (state.timer?.contextSwitchCount || 0) < 5) {
+        // Don't show modal - first 5 switches are free in multi-tab mode
+        return;
+      }
       feedback.showDistractionModal(`You were away for ${awaySeconds} seconds.`);
     }
 
@@ -580,6 +641,11 @@ export function createTimerController({ store, feedback }) {
           distractionHandled: true
         }
       }));
+
+      // Start away penalty timer for single-tab mode
+      if (isSingleTabMode) {
+        startAwayPenaltyTimer(Date.now());
+      }
     };
 
     window.addEventListener("blur", handleBlur);
@@ -590,7 +656,36 @@ export function createTimerController({ store, feedback }) {
         return;
       }
 
+      // Stop the away penalty timer
+      stopAwayPenaltyTimer();
+
       const awaySeconds = Math.round((Date.now() - state.timer.blurStartedAt) / 1000);
+      
+      // Log consolidated away penalty if accumulated
+      const awayPenalty = state.timer.awayPenaltyAccumulated || 0;
+      if (awayPenalty > 0) {
+        store.setState((current) => ({
+          ...current,
+          timer: {
+            ...current.timer,
+            distractionPenaltyTotal: current.timer.distractionPenaltyTotal + awayPenalty,
+            distractionLog: [
+              ...current.timer.distractionLog,
+              {
+                reason: "Away penalty",
+                duration: awaySeconds,
+                penalty: awayPenalty,
+                recordedAt: Date.now(),
+                type: "away",
+                isAwayPenalty: true
+              }
+            ],
+            awayPenaltyAccumulated: 0,
+            awayPenaltyDuration: 0
+          }
+        }));
+      }
+      
       clearDistractionTracking(awaySeconds);
     });
 
@@ -627,12 +722,46 @@ export function createTimerController({ store, feedback }) {
               distractionHandled: true
             }
           }));
+
+          // Start away penalty timer for single-tab mode
+          if (isSingleTabMode) {
+            startAwayPenaltyTimer(Date.now());
+          }
         }
         return;
       }
 
       if (state.timer.blurStartedAt) {
+        // Stop the away penalty timer
+        stopAwayPenaltyTimer();
+
         const awaySeconds = Math.round((Date.now() - state.timer.blurStartedAt) / 1000);
+        
+        // Log consolidated away penalty if accumulated
+        const awayPenalty = state.timer.awayPenaltyAccumulated || 0;
+        if (awayPenalty > 0) {
+          store.setState((current) => ({
+            ...current,
+            timer: {
+              ...current.timer,
+              distractionPenaltyTotal: current.timer.distractionPenaltyTotal + awayPenalty,
+              distractionLog: [
+                ...current.timer.distractionLog,
+                {
+                  reason: "Away penalty",
+                  duration: awaySeconds,
+                  penalty: awayPenalty,
+                  recordedAt: Date.now(),
+                  type: "away",
+                  isAwayPenalty: true
+                }
+              ],
+              awayPenaltyAccumulated: 0,
+              awayPenaltyDuration: 0
+            }
+          }));
+        }
+        
         clearDistractionTracking(awaySeconds);
       }
     });

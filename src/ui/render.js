@@ -30,7 +30,7 @@ function getScoringDescription(sessionMode) {
       return `Light penalties: -${Math.floor(distractionPenalty / 2)} per distraction, -${Math.floor(idlePenalty / 2)} idle. Context switches: first ${CONTEXT_SWITCH_FREE_LIMIT} free, then -${CONTEXT_SWITCH_PENALTY} each.`;
     case "normal":
     default:
-      return `Standard penalties: -${distractionPenalty} per distraction, -${idlePenalty} idle. Context switches: first ${CONTEXT_SWITCH_FREE_LIMIT} free, then -${CONTEXT_SWITCH_PENALTY} each.`;
+      return `Standard penalties: -${distractionPenalty} per distraction, -${idlePenalty} idle. Context switches: first ${CONTEXT_SWITCH_FREE_LIMIT} free, then -${CONTEXT_SWITCH_PENALTY} each. Single‑tab: additional -3 for every 30s away.`;
   }
 }
 
@@ -229,10 +229,14 @@ function renderPresenceDashboard(state, refs) {
       // Solo mode: determine status from timer state
       const isRunning = state.timer.running;
       const isDistracted = state.timer.blurStartedAt || state.timer.distractionReason;
+      // Multi-tab mode: check if context switches exceeded threshold (5)
+      const isMultiTabMode = state.ui?.tabMode !== "singletab";
+      const contextSwitches = state.timer?.contextSwitchCount || 0;
+      const isContextSwitchDistracted = isMultiTabMode && contextSwitches >= 5;
       
       if (!isRunning) {
         refs.workspacePresenceDot.className = "status-dot status-dot--idle";
-      } else if (isDistracted) {
+      } else if (isDistracted || isContextSwitchDistracted) {
         refs.workspacePresenceDot.className = "status-dot status-dot--distracted";
       } else {
         refs.workspacePresenceDot.className = "status-dot status-dot--focused";
@@ -488,26 +492,40 @@ function renderSummary(state, refs) {
     // Dynamic distraction log based on tab mode
     const hasDistractions = result.distractionLog?.length > 0;
     const hasContextSwitches = result.contextSwitchLog?.length > 0;
+    const sessionMode = result.sessionMode || "normal";
+    
+    // Build mode penalty header for deep/sprint modes
+    let modeHeader = "";
+    if (sessionMode === "deep") {
+      modeHeader = `<div class="log-row log-row--mode"><span>Deep mode: Strict penalties</span><strong>-30 per distraction, -40 idle</strong></div>`;
+    } else if (sessionMode === "sprint") {
+      modeHeader = `<div class="log-row log-row--mode"><span>Sprint mode: Light penalties</span><strong>-8 per distraction, -10 idle</strong></div>`;
+    }
     
     if (hasDistractions) {
-      // Show real distractions
-      refs.distractionLog.innerHTML = result.distractionLog.map((item) => `
+      // Show real distractions with mode header if applicable
+      refs.distractionLog.innerHTML = modeHeader + result.distractionLog.map((item) => `
         <div class="log-row">
           <span>${escapeHtml(item.reason)}</span>
           <strong>${item.duration}s / -${item.penalty}</strong>
         </div>
       `).join("");
     } else if (isMultiTabMode && hasContextSwitches) {
-      // Multi-tab mode: show context switches
-      refs.distractionLog.innerHTML = result.contextSwitchLog.map((item, index) => `
+      // Multi-tab mode: show context switches with mode header if applicable
+      refs.distractionLog.innerHTML = modeHeader + result.contextSwitchLog.map((item, index) => `
         <div class="log-row${index < 5 ? '' : ' log-row--penalty'}">
           <span>${escapeHtml(item.reason)} ${index < 5 ? '(free)' : '(counts as distraction)'}</span>
           <strong>${item.duration}s / -${item.penalty}</strong>
         </div>
       `).join("");
     } else {
-      // No distractions recorded
-      refs.distractionLog.innerHTML = `<div class="log-row log-row--empty">${isMultiTabMode ? 'No distractions recorded. First 5 tab switches are free.' : 'No distractions recorded.'}</div>`;
+      // No distractions recorded - still show mode info if deep/sprint
+      const modeInfo = sessionMode === "deep" 
+        ? "Deep mode: Strict penalties apply. "
+        : sessionMode === "sprint"
+        ? "Sprint mode: Light penalties apply. "
+        : "";
+      refs.distractionLog.innerHTML = modeHeader || `<div class="log-row log-row--empty">${modeInfo}${isMultiTabMode ? 'No distractions recorded. First 5 tab switches are free.' : 'No distractions recorded.'}</div>`;
     }
   }
 }
