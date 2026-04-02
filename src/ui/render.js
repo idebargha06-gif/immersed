@@ -494,13 +494,36 @@ function renderSummary(state, refs) {
     const hasContextSwitches = result.contextSwitchLog?.length > 0;
     const sessionMode = result.sessionMode || "normal";
     
-    // Build mode penalty header for deep/sprint modes
-    let modeHeader = "";
+    // Mode indicator with actual penalties
+    const realDistractCount = result.realDistractions ?? 0;
+    const idleCount = result.idleEvents ?? 0;
+    
+    let modeLabel = "";
+    let distractionPenaltyTotal = 0;
+    let idlePenaltyTotal = 0;
+    
     if (sessionMode === "deep") {
-      modeHeader = `<div class="log-row log-row--mode"><span>Deep mode: Strict penalties</span><strong>-30 per distraction, -40 idle</strong></div>`;
+      modeLabel = "Deep";
+      distractionPenaltyTotal = realDistractCount * 30;
+      idlePenaltyTotal = idleCount * 40;
     } else if (sessionMode === "sprint") {
-      modeHeader = `<div class="log-row log-row--mode"><span>Sprint mode: Light penalties</span><strong>-8 per distraction, -10 idle</strong></div>`;
+      modeLabel = "Sprint";
+      distractionPenaltyTotal = realDistractCount * 8;
+      idlePenaltyTotal = idleCount * 10;
+    } else {
+      modeLabel = "Study";
+      distractionPenaltyTotal = realDistractCount * 15;
+      idlePenaltyTotal = idleCount * 20;
     }
+    
+    // Build penalty summary
+    const penalties = [];
+    if (realDistractCount > 0) penalties.push(`-${distractionPenaltyTotal}`);
+    if (idleCount > 0) penalties.push(`-${idlePenaltyTotal} idle`);
+    
+    const modeHeader = penalties.length > 0 
+      ? `<div class="log-row"><span>${modeLabel} mode</span><strong>${realDistractCount} distraction${realDistractCount !== 1 ? 's' : ''}${idleCount > 0 ? `, ${idleCount} idle` : ''}/${penalties.join(", ")}</strong></div>`
+      : "";
     
     if (hasDistractions) {
       // Show real distractions with mode header if applicable
